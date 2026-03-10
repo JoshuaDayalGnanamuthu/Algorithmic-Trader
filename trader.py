@@ -34,8 +34,16 @@ RSI_OVERSOLD     = 30      # RSI below this → BUY alert
 RSI_OVERBOUGHT   = 70      # RSI above this → SELL alert
 CHECK_INTERVAL   = 30      # Seconds between checks (300 = 5 minutes)
 
-
-
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s  [%(levelname)s]  %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    handlers=[
+        logging.FileHandler("trades.log"),
+        logging.StreamHandler(),
+    ],
+)
+log = logging.getLogger(__name__)
 
 
 
