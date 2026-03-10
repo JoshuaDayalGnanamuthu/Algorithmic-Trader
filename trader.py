@@ -14,3 +14,17 @@ RSI_PERIOD       = 14      # Number of periods for RSI calculation
 RSI_OVERSOLD     = 30      # RSI below this → BUY alert
 RSI_OVERBOUGHT   = 70      # RSI above this → SELL alert
 CHECK_INTERVAL   = 30      # Seconds between checks (300 = 5 minutes)
+
+
+
+
+
+
+def main(): 
+
+    pass
+
+
+
+if __name__ == "__main__":
+    main()
