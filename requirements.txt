@@ -1,1 +1,2 @@
 robin-stocks==3.0.6
+colorama==0.4.4
