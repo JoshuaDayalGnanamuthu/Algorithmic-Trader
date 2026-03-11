@@ -1,11 +1,10 @@
 import robin_stocks.robinhood as rh
 from Crypto.PublicKey import RSA
 from dotenv import load_dotenv
-import datetime
+from datetime import datetime, date
 import time
 import logging
 import os
-from datetime import datetime
 from statistics import mean
 
 # FIX [TODO]: Logging should be more detailed, with separate log files for alerts and errors, and include timestamps and symbols in log entries.
@@ -49,7 +48,7 @@ WATCHLIST = [
     "COIN", "MARA", "RIOT", "PLTR", "SOFI"
 ]
 
-def LOGIN(username = USERNAME, password = PASSWORD) -> None:
+def LOGIN(username: str = USERNAME, password: str = PASSWORD) -> None:
     try:
         rh.login(username, password)
         print("Logged in successfully.")
@@ -57,11 +56,24 @@ def LOGIN(username = USERNAME, password = PASSWORD) -> None:
         print(f"Login failed: {e}")
         exit(1)
 
-def HOLDINGS() -> dict[str, float]:
+def LASTTRANSACTION(ticker: str = None) -> date | None:
+    orders = rh.orders.get_all_stock_orders(info=None)
+    for order in orders:
+        if order['state'] != 'filled':
+            continue
+        instrument = rh.stocks.get_instrument_by_url(order['instrument'])
+        if instrument['symbol'] == ticker:
+            dt = datetime.fromisoformat(order['last_transaction_at'].replace('Z', '+00:00'))
+            return dt.date()
+    print(f"No filled orders found for {ticker}")
+    return None
+    
+
+def HOLDINGS() -> dict[str, list[float, date | None]]:
     holdings = rh.account.build_holdings(with_dividends=False)
     stocks = dict()
     for ticker, data in holdings.items():
-        stocks[ticker] = data["quantity"]
+        stocks[ticker] = [data["quantity"], LASTTRANSACTION(ticker)]
     return stocks
 
 def BUYINGPOWER() -> float:
@@ -70,8 +82,8 @@ def BUYINGPOWER() -> float:
 LOGIN()
 print("Current Holdings:", STOCKS := HOLDINGS())
 print("Current Buying Power:", BUYINGPOWER())
-# HOLDINGS = rh.account.build_holdings(with_dividends=False)
-# print(HOLDINGS)
+LASTTRANSACTION("RKLB")
+LASTTRANSACTION("ASTS")
 
 
 
