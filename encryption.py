@@ -7,7 +7,7 @@ import os
    USE ONCE TO GENERATE A KEY PAIR, THEN STORE THE PUBLIC AND PRIVATE KEYS IN ENVIRONMENT VARIABLES OR A SECURE VAULT.
 """
 
-def generate_key_pair(key_size: int = 2048):
+def generate_key_pair(key_size: int = 2048) -> tuple[RSA.RsaKey, RSA.RsaKey]:
     """
     Generate an RSA public/private key pair.
     """
@@ -36,7 +36,7 @@ def decrypt_message(encrypted_base64: str, private_key: RSA.RsaKey) -> str:
     decrypted_bytes = cipher.decrypt(encrypted_bytes)
     return decrypted_bytes.decode("utf-8")
 
-def test(public_key, private_key):
+def test(public_key, private_key) -> None:
     message = "Hello, secure world! This is a test message."
     print("Original Message:")
     print(message, "\n")
@@ -51,11 +51,15 @@ def test(public_key, private_key):
     assert message == decrypted_message
     print("Encryption and decryption successful!")
 
-if __name__ == "__main__":
+def main():
     public_key, private_key = generate_key_pair()
     print("Key pair generated.\n")
     os.environ['PUBLIC_KEY'] = public_key.export_key().decode("utf-8")
     os.environ['PRIVATE_KEY'] = private_key.export_key().decode("utf-8")
+    
+if __name__ == "__main__":
+    main()
+    
 
 
     
