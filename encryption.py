@@ -54,9 +54,11 @@ def test(public_key, private_key) -> None:
 def main():
     public_key, private_key = generate_key_pair()
     print("Key pair generated.\n")
-    os.environ['PUBLIC_KEY'] = public_key.export_key().decode("utf-8")
-    os.environ['PRIVATE_KEY'] = private_key.export_key().decode("utf-8")
-    
+    with open("private.env", "w") as f:
+        f.write(f'PUBLIC_KEY="""{public_key.export_key().decode("utf-8")}"""\n')
+        f.write(f'PRIVATE_KEY."""{private_key.export_key().decode("utf-8")}"""\n')
+    print("Keys saved to private.env file.\n")
+
 if __name__ == "__main__":
     main()
     
