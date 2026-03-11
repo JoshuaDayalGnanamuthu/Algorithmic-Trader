@@ -1,12 +1,13 @@
 import robin_stocks.robinhood as rh
+from Crypto.PublicKey import RSA
+from dotenv import load_dotenv
+import datetime
 import time
 import logging
 import os
 from datetime import datetime
 from statistics import mean
 
-# FIX [TODO]: Move credentials to environment variables or a secure vault in production!
-# FIX [TODO]: Add List of stocsk in possesiion to be able to sell them when they are overbought, and not just alert about it.
 # FIX [TODO]: Logging should be more detailed, with separate log files for alerts and errors, and include timestamps and symbols in log entries.
 # FIX [TODO]: Store data when stocks were bough, they can only be sold after 1 market day, so we need to know when we bought them to be able to sell them.
 # FIX [TODO]: Add a feature to automatically execute trades based on the alerts, with proper risk management and order types (e.g., limit orders).
@@ -25,33 +26,63 @@ from statistics import mean
 # FIX [TODO]: Create Algorithm that decices how mmuch cash to allocate to each trade based on the current portfolio value, risk tolerance, and the strength of the trading signal, to optimize position sizing and manage risk effectively.
 # PROJECT TIMELINE: Finish Over Spring Break??
 
-USERNAME = os.environ.get("RH_USERNAME", None) # Set your Robinhood username as an environment variable
-PASSWORD = os.environ.get("RH_PASSWORD", None) # Set your Robinhood password as an environment variable
-WATCHLIST = ["AAPL", "TSLA", "ASTS", "NVDA", "AMZN", "RKLB"]
+load_dotenv("credentials.env") # Load environment variables from .env file
+USERNAME = os.getenv("USERNAME") # Set your Robinhood username as an environment variable
+PASSWORD = os.getenv("PASSWORD") # Set your Robinhood password as an environment variable
+
+PRIVATE_KEY = os.getenv("PRIVATE_KEY").replace("\\n", "\n") # Set your RSA private key as an environment variable
+PUBLIC_KEY = os.getenv("PUBLIC_KEY").replace("\\n", "\n") # Set your RSA public key as an environment variable
+PRIVATE_KEY = RSA.import_key(PRIVATE_KEY)
+PUBLIC_KEY = RSA.import_key(PUBLIC_KEY)
+
+WATCHLIST = [
+    "AAPL", "TSLA", "ASTS", "NVDA", "AMZN", "RKLB",
+    "MSFT", "GOOGL", "META", "AMD", "INTC",
+    "RIVN", "LCID", "NIO",
+    "SMCI", "AVGO", "TSM", "MU",
+    "LUNR", "SPCE", "PL", "ASTS"
+    "COIN", "MARA", "RIOT", "PLTR", "SOFI"
+]
+
+def LOGIN(username = USERNAME, password = PASSWORD) -> None:
+    try:
+        rh.login(username, password)
+        print("Logged in successfully.")
+    except Exception as e:
+        print(f"Login failed: {e}")
+        exit(1)
+
+def HOLDINGS() -> dict[str, float]:
+    holdings = rh.account.build_holdings(with_dividends=False)
+    stocks = dict()
+    for ticker, data in holdings.items():
+        stocks[ticker] = data["quantity"]
+    return stocks
+
+def BUYINGPOWER() -> float:
+    return float(rh.account.load_account_profile()["buying_power"])
+
+LOGIN()
+print("Current Holdings:", STOCKS := HOLDINGS())
+print("Current Buying Power:", BUYINGPOWER())
+# HOLDINGS = rh.account.build_holdings(with_dividends=False)
+# print(HOLDINGS)
 
 RSI_PERIOD       = 14      # Number of periods for RSI calculation
 RSI_OVERSOLD     = 30      # RSI below this → BUY alert
 RSI_OVERBOUGHT   = 70      # RSI above this → SELL alert
 CHECK_INTERVAL   = 30      # Seconds between checks (300 = 5 minutes)
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s  [%(levelname)s]  %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    handlers=[
-        logging.FileHandler("trades.log"),
-        logging.StreamHandler(),
-    ],
-)
-log = logging.getLogger(__name__)
+# logging.basicConfig(
+#     level=logging.INFO,
+#     format="%(asctime)s  [%(levelname)s]  %(message)s",
+#     datefmt="%Y-%m-%d %H:%M:%S",
+#     handlers=[
+#         logging.FileHandler("trades.log"),
+#         logging.StreamHandler(),
+#     ],
+# )
+# log = logging.getLogger(__name__)
 
 
 
-def main(): 
-
-    pass
-
-
-
-if __name__ == "__main__":
-    main()
