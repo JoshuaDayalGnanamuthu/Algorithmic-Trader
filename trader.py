@@ -35,6 +35,11 @@ PUBLIC_KEY = os.getenv("PUBLIC_KEY").replace("\\n", "\n") # Set your RSA public 
 PRIVATE_KEY = RSA.import_key(PRIVATE_KEY)
 PUBLIC_KEY = RSA.import_key(PUBLIC_KEY)
 
+RSI_PERIOD       = 14      # Number of periods for RSI calculation
+RSI_OVERSOLD     = 30      # RSI below this → BUY alert
+RSI_OVERBOUGHT   = 70      # RSI above this → SELL alert
+CHECK_INTERVAL   = 300      # Seconds between checks (300 = 5 minutes)
+
 WATCHLIST = [
     "AAPL", "TSLA", "ASTS", "NVDA", "AMZN", "RKLB",
     "MSFT", "GOOGL", "META", "AMD", "INTC",
@@ -68,10 +73,7 @@ print("Current Buying Power:", BUYINGPOWER())
 # HOLDINGS = rh.account.build_holdings(with_dividends=False)
 # print(HOLDINGS)
 
-RSI_PERIOD       = 14      # Number of periods for RSI calculation
-RSI_OVERSOLD     = 30      # RSI below this → BUY alert
-RSI_OVERBOUGHT   = 70      # RSI above this → SELL alert
-CHECK_INTERVAL   = 30      # Seconds between checks (300 = 5 minutes)
+
 
 # logging.basicConfig(
 #     level=logging.INFO,
