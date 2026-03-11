@@ -1,7 +1,11 @@
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
 import base64
+import os
 
+"""USE THIS FILE TO ENCRYPT LOGS AND DATA FILES, TO PROTECT SENSITIVE INFORMATION IN CASE OF UNAUTHORIZED ACCESS. TRY IMPLEMENTING RSA ENCRYPTION FOR ADDED SECURITY.
+   USE ONCE TO GENERATE A KEY PAIR, THEN STORE THE PUBLIC AND PRIVATE KEYS IN ENVIRONMENT VARIABLES OR A SECURE VAULT.
+"""
 
 def generate_key_pair(key_size: int = 2048):
     """
@@ -32,29 +36,26 @@ def decrypt_message(encrypted_base64: str, private_key: RSA.RsaKey) -> str:
     decrypted_bytes = cipher.decrypt(encrypted_bytes)
     return decrypted_bytes.decode("utf-8")
 
-
-# --- Example Usage ---
-if __name__ == "__main__":
-
-    # 1. Generate RSA keys
-    public_key, private_key = generate_key_pair()
-    print("Key pair generated.\n")
-
-    # 2. Original message
+def test(public_key, private_key):
     message = "Hello, secure world! This is a test message."
     print("Original Message:")
     print(message, "\n")
 
-    # 3. Encrypt message
     encrypted_message = encrypt_message(message, public_key)
     print("Encrypted (Base64):")
     print(encrypted_message, "\n")
 
-    # 4. Decrypt message
     decrypted_message = decrypt_message(encrypted_message, private_key)
     print("Decrypted Message:")
     print(decrypted_message, "\n")
-
-    # 5. Verification
     assert message == decrypted_message
     print("Encryption and decryption successful!")
+
+if __name__ == "__main__":
+    public_key, private_key = generate_key_pair()
+    print("Key pair generated.\n")
+    os.environ['PUBLIC_KEY'] = public_key.export_key().decode("utf-8")
+    os.environ['PRIVATE_KEY'] = private_key.export_key().decode("utf-8")
+
+
+    
