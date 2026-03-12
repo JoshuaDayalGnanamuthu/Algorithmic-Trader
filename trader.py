@@ -5,9 +5,9 @@ from datetime import datetime, date
 import smtplib
 import ssl
 from email.message import EmailMessage
-import time
 import logging
 import os
+import time
 from statistics import mean
 
 # FIX [TODO]: Logging should be more detailed, with separate log files for alerts and errors, and include timestamps and symbols in log entries.
@@ -48,12 +48,37 @@ WATCHLIST = [
     "COIN", "MARA", "RIOT", "PLTR", "SOFI"
 ]
 
+logging.basicConfig(level=logging.INFO, # set up logging to write messages to a file and the console
+    format="%(asctime)s  [%(levelname)s]  %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    handlers=[
+        logging.FileHandler("trades.log"),
+        logging.StreamHandler(),
+    ],
+)
+log = logging.getLogger(__name__)
+
+def ERRORLOGGER(message: str) -> None:
+    log.error(message)
+
+def INFOLOGGER(message: str) -> None:
+    log.info(message)
+
+def WARNLOGGER(message: str) -> None:
+    log.warning(message)
+
+def DEBUGLOGGER(message: str) -> None:
+    log.debug(message)
+
+def CRITICALLOGGER(message: str) -> None:
+    log.critical(message)
+
 def LOGIN(username: str = USERNAME, password: str = PASSWORD) -> None:
     try:
         rh.login(username, password)
-        print("Logged in successfully.")
+        INFOLOGGER("Logged in successfully.")
     except Exception as e:
-        print(f"Login failed: {e}")
+        ERRORLOGGER(f"Login failed: {e}")
         exit(1)
 
 def LASTTRANSACTION(ticker: str = None) -> date | None:
@@ -65,7 +90,7 @@ def LASTTRANSACTION(ticker: str = None) -> date | None:
         if instrument['symbol'] == ticker:
             dt = datetime.fromisoformat(order['last_transaction_at'].replace('Z', '+00:00'))
             return dt.date()
-    print(f"No filled orders found for {ticker}")
+    ERRORLOGGER(f"No filled orders found for {ticker}")
     return None
 
 def HOLDINGS() -> dict[str, list[float, date | None]]:
@@ -81,46 +106,46 @@ def BUYINGPOWER() -> float:
 def BUYORDER(ticker: str, quantity: float, price: float) -> dict | None:
     try:
         if (price <= 0 or quantity <= 0):
-            print(f"Buy order failed: Invalid price {price} or quantity {quantity}")
+            ERRORLOGGER(f"Buy order failed: Invalid price {price} or quantity {quantity}")
             return None
         if (not rh.stocks.get_latest_price(ticker)[0]):
-            print(f"Buy order failed: Invalid ticker {ticker}")
+            ERRORLOGGER(f"Buy order failed: Invalid ticker {ticker}")
             return None
         buying_power = BUYINGPOWER()
         if (price * quantity > buying_power):
-            print(f"Buy order failed: Insufficient funds (need ${price*quantity:.2f}, have ${buying_power:.2f})")
+            ERRORLOGGER(f"Buy order failed: Insufficient funds (need ${price*quantity:.2f}, have ${buying_power:.2f})")
             return None
         MAILALERT(f"BUY ALERT: {ticker}", f"Price: ${price:.2f}\nQuantity: {quantity}\nTotal Cost: ${price*quantity:.2f}")
         return rh.orders.order_buy_limit(symbol=ticker, quantity=quantity, limitPrice=price, timeInForce='gfd')
     except Exception as e:
-        print(f"Buy order failed: {e}")
+        ERRORLOGGER(f"Buy order failed: {e}")
         return None
 
 def SELLORDER(ticker: str, quantity: float, price: float) -> dict | None:
     try:
         if (price <= 0 or quantity <= 0):
-            print(f"Sell order failed: Invalid price {price}")
+            ERRORLOGGER(f"Sell order failed: Invalid price {price}")
             return None
         holdings = HOLDINGS()
         if ticker not in holdings:
-            print(f"Sell order failed: No holdings for {ticker}")
+            ERRORLOGGER(f"Sell order failed: No holdings for {ticker}")
             return None
         current_date = date.today()
         last_transaction_date = holdings[ticker][1]
         if (current_date - last_transaction_date).days < 2:
-            print(f"Sell order failed: Must hold {ticker} for more than 2 days (held {(current_date - last_transaction_date).days}d)")
+            ERRORLOGGER(f"Sell order failed: Must hold {ticker} for more than 2 days (held {(current_date - last_transaction_date).days}d)")
             return None
         MAILALERT(f"SELL ALERT: {ticker}", f"Sell {quantity} shares of {ticker} at ${price:.2f}")
         return rh.orders.order_sell_limit(symbol=ticker, quantity=quantity, limitPrice=price, timeInForce='gfd')
     except Exception as e:
-        print(f"Sell order failed: {e}")
+        ERRORLOGGER(f"Sell order failed: {e}")
         return None
 
 def MAILALERT(subject: str, body: str) -> None:
     EMAIL = os.getenv("EMAIL")
     EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
     if not EMAIL or not EMAIL_PASSWORD:
-        print("Mail alert failed: EMAIL or EMAIL_PASSWORD not set in .env")
+        ERRORLOGGER("Mail alert failed: EMAIL or EMAIL_PASSWORD not set in .env")
         return
     message = EmailMessage()
     message.set_content(body)
@@ -131,23 +156,26 @@ def MAILALERT(subject: str, body: str) -> None:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ssl.create_default_context()) as server:
             server.login(EMAIL, EMAIL_PASSWORD)
             server.send_message(message)
-        print("Email sent successfully!")
+        INFOLOGGER("Email sent successfully!")
     except smtplib.SMTPAuthenticationError:
-        print("Mail alert failed: Authentication error — check your App Password")
+        ERRORLOGGER("Mail alert failed: Authentication error — check your App Password")
+
     except smtplib.SMTPException as e:
-        print(f"Mail alert failed: {e}")
+        ERRORLOGGER(f"Mail alert failed: {e}")  
+
 
 def LASTPRICE(ticker: str) -> float | None:
     try:
         price = rh.stocks.get_latest_price(ticker)[0]
         return float(price) if price else None
     except Exception as e:
-        print(f"Failed to get latest price for {ticker}: {e}")
+        ERRORLOGGER(f"Failed to get latest price for {ticker}: {e}")
         return None
 
 def LOGOUT() -> None:
-    print("Logging out...")
+    INFOLOGGER("Logging out...")
     rh.authentication.logout()
+
 
 
 LOGIN()
@@ -159,16 +187,7 @@ SELLORDER("RKLB", 1, LASTPRICE("RKLB"))
 LOGOUT()
 
 
-# logging.basicConfig(
-#     level=logging.INFO,
-#     format="%(asctime)s  [%(levelname)s]  %(message)s",
-#     datefmt="%Y-%m-%d %H:%M:%S",
-#     handlers=[
-#         logging.FileHandler("trades.log"),
-#         logging.StreamHandler(),
-#     ],
-# )
-# log = logging.getLogger(__name__)
+
 
 
 
