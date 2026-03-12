@@ -8,7 +8,6 @@ import os
 from statistics import mean
 
 # FIX [TODO]: Logging should be more detailed, with separate log files for alerts and errors, and include timestamps and symbols in log entries.
-# FIX [TODO]: Store data when stocks were bough, they can only be sold after 1 market day, so we need to know when we bought them to be able to sell them.
 # FIX [TODO]: Add a feature to automatically execute trades based on the alerts, with proper risk management and order types (e.g., limit orders).
 # FIX [TODO]: Add features to track the performance of the bot, such as profit/loss, win rate, and average return per trade, to evaluate and optimize the strategy over time.
 # FIX [TODO]: Add file system encryption for logs and data files, to protect sensitive information in case of unauthorized access. Try implementing RSA encryption for added security.
@@ -79,12 +78,16 @@ def HOLDINGS() -> dict[str, list[float, date | None]]:
 def BUYINGPOWER() -> float:
     return float(rh.account.load_account_profile()["buying_power"])
 
+def LOGOUT() -> None:
+    print("Logging out...")
+    rh.authentication.logout()
+    
 LOGIN()
 print("Current Holdings:", STOCKS := HOLDINGS())
 print("Current Buying Power:", BUYINGPOWER())
 LASTTRANSACTION("RKLB")
 LASTTRANSACTION("ASTS")
-
+LOGOUT()
 
 
 # logging.basicConfig(
