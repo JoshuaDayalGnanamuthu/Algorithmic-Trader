@@ -2,6 +2,9 @@ import robin_stocks.robinhood as rh
 from Crypto.PublicKey import RSA
 from dotenv import load_dotenv
 from datetime import datetime, date
+import smtplib
+import ssl
+from email.message import EmailMessage
 import time
 import logging
 import os
@@ -36,7 +39,7 @@ PUBLIC_KEY = RSA.import_key(PUBLIC_KEY)
 RSI_PERIOD       = 14      # Number of periods for RSI calculation
 RSI_OVERSOLD     = 30      # RSI below this → BUY alert
 RSI_OVERBOUGHT   = 70      # RSI above this → SELL alert
-CHECK_INTERVAL   = 300      # Seconds between checks (300 = 5 minutes)
+CHECK_INTERVAL   = 300     # Seconds between checks (300 = 5 minutes)
 
 WATCHLIST = [
     "AAPL", "TSLA", "ASTS", "NVDA", "AMZN", "RKLB",
@@ -66,7 +69,6 @@ def LASTTRANSACTION(ticker: str = None) -> date | None:
             return dt.date()
     print(f"No filled orders found for {ticker}")
     return None
-    
 
 def HOLDINGS() -> dict[str, list[float, date | None]]:
     holdings = rh.account.build_holdings(with_dividends=False)
@@ -78,10 +80,70 @@ def HOLDINGS() -> dict[str, list[float, date | None]]:
 def BUYINGPOWER() -> float:
     return float(rh.account.load_account_profile()["buying_power"])
 
+def BUYORDER(ticker: str, quantity: float, price: float) -> dict | None:
+    try:
+        if (price <= 0 or quantity <= 0):
+            print(f"Buy order failed: Invalid price {price} or quantity {quantity}")
+            return None
+        if (not rh.stocks.get_latest_price(ticker)[0]):
+            print(f"Buy order failed: Invalid ticker {ticker}")
+            return None
+        buying_power = BUYINGPOWER()
+        if (price * quantity > buying_power):
+            print(f"Buy order failed: Insufficient funds (need ${price*quantity:.2f}, have ${buying_power:.2f})")
+            return None
+        MAILALERT(f"BUY ALERT: {ticker}", f"Price: ${price:.2f}\nQuantity: {quantity}\nTotal Cost: ${price*quantity:.2f}")
+        return rh.orders.order_buy_limit(symbol=ticker, quantity=quantity, limitPrice=price, timeInForce='gfd')
+    except Exception as e:
+        print(f"Buy order failed: {e}")
+        return None
+
+def SELLORDER(ticker: str, quantity: float, price: float) -> dict | None:
+    try:
+        if (price <= 0 or quantity <= 0):
+            print(f"Sell order failed: Invalid price {price}")
+            return None
+        holdings = HOLDINGS()
+        if ticker not in holdings:
+            print(f"Sell order failed: No holdings for {ticker}")
+            return None
+        current_date = date.today()
+        last_transaction_date = holdings[ticker][1]
+        if (current_date - last_transaction_date).days < 2:
+            print(f"Sell order failed: Must hold {ticker} for more than 2 days (held {(current_date - last_transaction_date).days}d)")
+            return None
+        MAILALERT(f"SELL ALERT: {ticker}", f"Sell {quantity} shares of {ticker} at ${price:.2f}")
+        return rh.orders.order_sell_limit(symbol=ticker, quantity=quantity, limitPrice=price, timeInForce='gfd')
+    except Exception as e:
+        print(f"Sell order failed: {e}")
+        return None
+
+def MAILALERT(subject: str, body: str) -> None:
+    EMAIL = os.getenv("EMAIL")
+    EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+    if not EMAIL or not EMAIL_PASSWORD:
+        print("Mail alert failed: EMAIL or EMAIL_PASSWORD not set in .env")
+        return
+    message = EmailMessage()
+    message.set_content(body)
+    message["Subject"] = subject
+    message["From"] = EMAIL
+    message["To"] = EMAIL
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ssl.create_default_context()) as server:
+            server.login(EMAIL, EMAIL_PASSWORD)
+            server.send_message(message)
+        print("Email sent successfully!")
+    except smtplib.SMTPAuthenticationError:
+        print("Mail alert failed: Authentication error — check your App Password")
+    except smtplib.SMTPException as e:
+        print(f"Mail alert failed: {e}")
+
 def LOGOUT() -> None:
     print("Logging out...")
     rh.authentication.logout()
-    
+
+
 LOGIN()
 print("Current Holdings:", STOCKS := HOLDINGS())
 print("Current Buying Power:", BUYINGPOWER())
