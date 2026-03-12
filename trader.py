@@ -11,12 +11,10 @@ import os
 from statistics import mean
 
 # FIX [TODO]: Logging should be more detailed, with separate log files for alerts and errors, and include timestamps and symbols in log entries.
-# FIX [TODO]: Add a feature to automatically execute trades based on the alerts, with proper risk management and order types (e.g., limit orders).
 # FIX [TODO]: Add features to track the performance of the bot, such as profit/loss, win rate, and average return per trade, to evaluate and optimize the strategy over time.
 # FIX [TODO]: Add file system encryption for logs and data files, to protect sensitive information in case of unauthorized access. Try implementing RSA encryption for added security.
 # FIX [TODO]: Bot should be able to run in the background, and start automatically on system boot, to ensure it doesn't miss any trading opportunities.
 # FIX [TODO]: Bot should be aware of market hours and market open days and only operate during those times, to avoid unnecessary checks and potential errors when the market is closed.
-# FIX [TODO]: Add a feature to send alerts to a mobile device or email, so the user can be notified of trading opportunities even when they are not actively monitoring the bot.
 # FIX [TODO]: Add a feature to backtest the RSI strategy using historical data, to evaluate its performance and optimize parameters before deploying it in live trading.
 # FIX [TODO]: Add a GUI interface to allow users to easily configure the bot, view logs, and monitor performance without needing to interact with the code directly.
 # FIX [TODO]: Incoporate ChatGPT to analyze news and social media sentiment for the stocks in the watchlist, to enhance the decision-making process and potentially improve trading performance.
@@ -139,6 +137,14 @@ def MAILALERT(subject: str, body: str) -> None:
     except smtplib.SMTPException as e:
         print(f"Mail alert failed: {e}")
 
+def LASTPRICE(ticker: str) -> float | None:
+    try:
+        price = rh.stocks.get_latest_price(ticker)[0]
+        return float(price) if price else None
+    except Exception as e:
+        print(f"Failed to get latest price for {ticker}: {e}")
+        return None
+
 def LOGOUT() -> None:
     print("Logging out...")
     rh.authentication.logout()
@@ -149,6 +155,7 @@ print("Current Holdings:", STOCKS := HOLDINGS())
 print("Current Buying Power:", BUYINGPOWER())
 LASTTRANSACTION("RKLB")
 LASTTRANSACTION("ASTS")
+SELLORDER("RKLB", 1, LASTPRICE("RKLB"))
 LOGOUT()
 
 
