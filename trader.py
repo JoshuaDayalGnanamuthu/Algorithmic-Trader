@@ -11,9 +11,7 @@ import os
 import time
 from statistics import mean
 
-# FIX [TODO]: Logging should be more detailed, with separate log files for alerts and errors, and include timestamps and symbols in log entries.
 # FIX [TODO]: Add features to track the performance of the bot, such as profit/loss, win rate, and average return per trade, to evaluate and optimize the strategy over time.
-# FIX [TODO]: Add file system encryption for logs and data files, to protect sensitive information in case of unauthorized access. Try implementing RSA encryption for added security.
 # FIX [TODO]: Bot should be able to run in the background, and start automatically on system boot, to ensure it doesn't miss any trading opportunities.
 # FIX [TODO]: Bot should be aware of market hours and market open days and only operate during those times, to avoid unnecessary checks and potential errors when the market is closed.
 # FIX [TODO]: Add a feature to backtest the RSI strategy using historical data, to evaluate its performance and optimize parameters before deploying it in live trading.
@@ -71,22 +69,21 @@ def LOGCONFIG(name: str, log_file: str, console: bool = True) -> logging.Logger:
     return logger
 
 infolog = LOGCONFIG("INFO", "information.log")
+errorlog = LOGCONFIG("ERROR", "error.log")
+
 tradeslog = LOGCONFIG("TRADES", "trades.log", console=False)
 
 def ERRORLOGGER(message: str) -> None:
-    infolog.error(message)
+    errorlog.error(message)
 
 def INFOLOGGER(message: str) -> None:
     infolog.info(message)
 
 def WARNLOGGER(message: str) -> None:
-    infolog.warning(message)
-
-def DEBUGLOGGER(message: str) -> None:
-    infolog.debug(message)
+    errorlog.warning(message)
 
 def CRITICALLOGGER(message: str) -> None:
-    infolog.critical(message)
+    errorlog.critical(message)
 
 def SALESLOGGER(message: str) -> None:
     message = encrypt_message(message, PUBLIC_KEY)
