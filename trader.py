@@ -1,3 +1,4 @@
+from encryption import encrypt_message, decrypt_message
 import robin_stocks.robinhood as rh
 from Crypto.PublicKey import RSA
 from dotenv import load_dotenv
@@ -48,30 +49,62 @@ WATCHLIST = [
     "COIN", "MARA", "RIOT", "PLTR", "SOFI"
 ]
 
-logging.basicConfig(level=logging.INFO, # set up logging to write messages to a file and the console
-    format="%(asctime)s  [%(levelname)s]  %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    handlers=[
-        logging.FileHandler("trades.log"),
-        logging.StreamHandler(),
-    ],
-)
-log = logging.getLogger(__name__)
+def LOGCONFIG(name: str, log_file: str, console: bool = True) -> logging.Logger:
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+
+    formatter = logging.Formatter(
+        "%(asctime)s  [%(levelname)s]  %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
+
+    file_handler = logging.FileHandler(log_file)
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+
+    if console:
+        stream_handler = logging.StreamHandler()
+        stream_handler.setFormatter(formatter)
+        logger.addHandler(stream_handler)
+
+    return logger
+
+infolog = LOGCONFIG("INFO", "information.log")
+tradeslog = LOGCONFIG("TRADES", "trades.log", console=False)
 
 def ERRORLOGGER(message: str) -> None:
-    log.error(message)
+    infolog.error(message)
 
 def INFOLOGGER(message: str) -> None:
-    log.info(message)
+    infolog.info(message)
 
 def WARNLOGGER(message: str) -> None:
-    log.warning(message)
+    infolog.warning(message)
 
 def DEBUGLOGGER(message: str) -> None:
-    log.debug(message)
+    infolog.debug(message)
 
 def CRITICALLOGGER(message: str) -> None:
-    log.critical(message)
+    infolog.critical(message)
+
+def SALESLOGGER(message: str) -> None:
+    message = encrypt_message(message, PUBLIC_KEY)
+    tradeslog.info(f"ENCRYPTED:{message}")
+
+def DECRYPTLOGS() -> None:
+    try:
+        with open("trades.log", "r") as f:
+            for line in f.readlines():
+                if "ENCRYPTED:" in line:
+                    encrypted_part = line.split("ENCRYPTED:")[1].strip()
+                    try:
+                        decrypted_message = decrypt_message(encrypted_part, PRIVATE_KEY)
+                        print(decrypted_message)
+                    except Exception as e:
+                        ERRORLOGGER(f"Could not decrypt line: {e}")
+    except Exception as e:
+        ERRORLOGGER(f"Failed to read trades.log: {e}")
 
 def LOGIN(username: str = USERNAME, password: str = PASSWORD) -> None:
     try:
@@ -116,6 +149,7 @@ def BUYORDER(ticker: str, quantity: float, price: float) -> dict | None:
             ERRORLOGGER(f"Buy order failed: Insufficient funds (need ${price*quantity:.2f}, have ${buying_power:.2f})")
             return None
         MAILALERT(f"BUY ALERT: {ticker}", f"Price: ${price:.2f}\nQuantity: {quantity}\nTotal Cost: ${price*quantity:.2f}")
+        SALESLOGGER(f"BUY ORDER: {ticker} | Price: ${price:.2f} | Quantity: {quantity} | Total Cost: ${price*quantity:.2f}")
         return rh.orders.order_buy_limit(symbol=ticker, quantity=quantity, limitPrice=price, timeInForce='gfd')
     except Exception as e:
         ERRORLOGGER(f"Buy order failed: {e}")
@@ -136,6 +170,7 @@ def SELLORDER(ticker: str, quantity: float, price: float) -> dict | None:
             ERRORLOGGER(f"Sell order failed: Must hold {ticker} for more than 2 days (held {(current_date - last_transaction_date).days}d)")
             return None
         MAILALERT(f"SELL ALERT: {ticker}", f"Sell {quantity} shares of {ticker} at ${price:.2f}")
+        SALESLOGGER(f"SELL ORDER: {ticker} | Price: ${price:.2f} | Quantity: {quantity} | Total Proceeds: ${price*quantity:.2f}")
         return rh.orders.order_sell_limit(symbol=ticker, quantity=quantity, limitPrice=price, timeInForce='gfd')
     except Exception as e:
         ERRORLOGGER(f"Sell order failed: {e}")
