@@ -90,9 +90,17 @@ errorlog = LOGCONFIG("ERROR", "error.log")
 tradeslog = LOGCONFIG("TRADES", "trades.log", console=False)
 
 def ERRORLOGGER(message: str) -> None:
+    QUERY = "INSERT INTO ERRORS (TYPE, MESSAGE) VALUES (%s, %s)"
+    VALUES = ("ERROR", message)
+    cursor.execute(QUERY, VALUES)
+    conn.commit()
     errorlog.error(message)
 
 def INFOLOGGER(message: str) -> None:
+    QUERY = "INSERT INTO EVENTS (TYPE, MESSAGE) VALUES (%s, %s)"
+    VALUES = ("INFO", message)
+    cursor.execute(QUERY, VALUES)
+    conn.commit()
     infolog.info(message)
 
 def WARNLOGGER(message: str) -> None:
