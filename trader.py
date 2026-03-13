@@ -8,9 +8,12 @@ import ssl
 from email.message import EmailMessage
 import logging
 import os
+import mysql.connector as my
 import time
 from statistics import mean
 
+# FIX [TODO]: Implement a more sophisticated trading strategy that combines multiple technical indicators (e.g., MACD, Bollinger Bands) and machine learning models to improve the accuracy of buy/sell signals.
+# FIX [TODO]: Write to a database rather than log files, to allow for more efficient storage and querying of trade data, performance metrics, and historical prices for backtesting and analysis.
 # FIX [TODO]: Add features to track the performance of the bot, such as profit/loss, win rate, and average return per trade, to evaluate and optimize the strategy over time.
 # FIX [TODO]: Bot should be able to run in the background, and start automatically on system boot, to ensure it doesn't miss any trading opportunities.
 # FIX [TODO]: Bot should be aware of market hours and market open days and only operate during those times, to avoid unnecessary checks and potential errors when the market is closed.
@@ -68,6 +71,19 @@ def LOGCONFIG(name: str, log_file: str, console: bool = True) -> logging.Logger:
 
     return logger
 
+def SQLCONNECT() -> my.MySQLConnection | None:
+    try:
+        conn = my.connect(host=os.getenv("DATABASE_HOST"), user=os.getenv("DATABASE_USERNAME"), 
+                          password=os.getenv("DATABASE_PASSWORD"), database="ALGOTRADER")
+        if conn.is_connected():
+            return conn
+        return None
+    except Exception as e:
+        ERRORLOGGER(f"Failed to connect to MySQL database: {e}")
+        return None
+
+conn = SQLCONNECT()
+cursor = conn.cursor() if conn else None
 infolog = LOGCONFIG("INFO", "information.log")
 errorlog = LOGCONFIG("ERROR", "error.log")
 
@@ -85,8 +101,12 @@ def WARNLOGGER(message: str) -> None:
 def CRITICALLOGGER(message: str) -> None:
     errorlog.critical(message)
 
-def SALESLOGGER(message: str) -> None:
+def SALESLOGGER(ticker: str, side: str, quantity: float, price: float, total: float, message: str) -> None:
     message = encrypt_message(message, PUBLIC_KEY)
+    QUERY = "INSERT INTO TRADES (TICKER, SIDE, QUANTITY, PRICE, TOTAL) VALUES (%s, %s, %s, %s, %s)"
+    VALUES = (ticker, side, quantity, price, total)
+    cursor.execute(QUERY, VALUES)
+    conn.commit()
     tradeslog.info(f"ENCRYPTED:{message}")
 
 def DECRYPTLOGS() -> None:
@@ -145,8 +165,9 @@ def BUYORDER(ticker: str, quantity: float, price: float) -> dict | None:
         if (price * quantity > buying_power):
             ERRORLOGGER(f"Buy order failed: Insufficient funds (need ${price*quantity:.2f}, have ${buying_power:.2f})")
             return None
-        MAILALERT(f"BUY ALERT: {ticker}", f"Price: ${price:.2f}\nQuantity: {quantity}\nTotal Cost: ${price*quantity:.2f}")
-        SALESLOGGER(f"BUY ORDER: {ticker} | Price: ${price:.2f} | Quantity: {quantity} | Total Cost: ${price*quantity:.2f}")
+        message = f"BUY ORDER: {ticker} | Price: ${price:.2f} | Quantity: {quantity} | Total Cost: ${price*quantity:.2f}"
+        MAILALERT(f"BUY ALERT: {ticker}", message)
+        SALESLOGGER(ticker, "BUY", quantity, price, price*quantity, message)
         return rh.orders.order_buy_limit(symbol=ticker, quantity=quantity, limitPrice=price, timeInForce='gfd')
     except Exception as e:
         ERRORLOGGER(f"Buy order failed: {e}")
@@ -166,8 +187,9 @@ def SELLORDER(ticker: str, quantity: float, price: float) -> dict | None:
         if (current_date - last_transaction_date).days < 2:
             ERRORLOGGER(f"Sell order failed: Must hold {ticker} for more than 2 days (held {(current_date - last_transaction_date).days}d)")
             return None
-        MAILALERT(f"SELL ALERT: {ticker}", f"Sell {quantity} shares of {ticker} at ${price:.2f}")
-        SALESLOGGER(f"SELL ORDER: {ticker} | Price: ${price:.2f} | Quantity: {quantity} | Total Proceeds: ${price*quantity:.2f}")
+        message = f"SELL ORDER: {ticker} | Price: ${price:.2f} | Quantity: {quantity} | Total Proceeds: ${price*quantity:.2f}"
+        MAILALERT(f"SELL ALERT: {ticker}", message)
+        SALESLOGGER(ticker, "SELL", quantity, price, price*quantity, message)
         return rh.orders.order_sell_limit(symbol=ticker, quantity=quantity, limitPrice=price, timeInForce='gfd')
     except Exception as e:
         ERRORLOGGER(f"Sell order failed: {e}")
@@ -194,7 +216,6 @@ def MAILALERT(subject: str, body: str) -> None:
 
     except smtplib.SMTPException as e:
         ERRORLOGGER(f"Mail alert failed: {e}")  
-
 
 def LASTPRICE(ticker: str) -> float | None:
     try:
