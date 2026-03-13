@@ -13,7 +13,6 @@ import time
 from statistics import mean
 
 # FIX [TODO]: Implement a more sophisticated trading strategy that combines multiple technical indicators (e.g., MACD, Bollinger Bands) and machine learning models to improve the accuracy of buy/sell signals.
-# FIX [TODO]: Write to a database rather than log files, to allow for more efficient storage and querying of trade data, performance metrics, and historical prices for backtesting and analysis.
 # FIX [TODO]: Add features to track the performance of the bot, such as profit/loss, win rate, and average return per trade, to evaluate and optimize the strategy over time.
 # FIX [TODO]: Bot should be able to run in the background, and start automatically on system boot, to ensure it doesn't miss any trading opportunities.
 # FIX [TODO]: Bot should be aware of market hours and market open days and only operate during those times, to avoid unnecessary checks and potential errors when the market is closed.
@@ -86,7 +85,6 @@ conn = SQLCONNECT()
 cursor = conn.cursor() if conn else None
 infolog = LOGCONFIG("INFO", "information.log")
 errorlog = LOGCONFIG("ERROR", "error.log")
-
 tradeslog = LOGCONFIG("TRADES", "trades.log", console=False)
 
 def ERRORLOGGER(message: str) -> None:
@@ -237,15 +235,20 @@ def LOGOUT() -> None:
     INFOLOGGER("Logging out...")
     rh.authentication.logout()
 
-
+def SQLCLOSE() -> None:
+    if cursor:
+        cursor.close()
+    if conn and conn.is_connected():
+        conn.close()
 
 LOGIN()
 print("Current Holdings:", STOCKS := HOLDINGS())
 print("Current Buying Power:", BUYINGPOWER())
 LASTTRANSACTION("RKLB")
 LASTTRANSACTION("ASTS")
-SELLORDER("RKLB", 1, LASTPRICE("RKLB"))
+#SELLORDER("RKLB", 1, LASTPRICE("RKLB"))
 LOGOUT()
+SQLCLOSE()
 
 
 
