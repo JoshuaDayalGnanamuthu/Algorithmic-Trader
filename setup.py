@@ -33,12 +33,14 @@ cursor.execute("""CREATE TABLE IF NOT EXISTS TRADES (
     PRICE FLOAT NOT NULL,
     TOTAL FLOAT NOT NULL
 )""")
+conn.commit()
 cursor.execute("""CREATE TABLE IF NOT EXISTS ERRORS (
     ID INT AUTO_INCREMENT PRIMARY KEY,
     TIMESTAMP TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     TYPE VARCHAR(10) DEFAULT 'ERROR',
     MESSAGE TEXT NOT NULL
 )""")
+conn.commit()
 cursor.execute("""CREATE TABLE IF NOT EXISTS EVENTS (
     ID INT AUTO_INCREMENT PRIMARY KEY,
     TIMESTAMP TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -46,7 +48,7 @@ cursor.execute("""CREATE TABLE IF NOT EXISTS EVENTS (
     MESSAGE TEXT NOT NULL
 )""")
 print("Database and table setup completed.")
-
+conn.commit()
 cursor.close()
 conn.close()
 
