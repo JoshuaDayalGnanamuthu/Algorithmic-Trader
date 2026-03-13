@@ -3,3 +3,4 @@ colorama==0.4.6
 cryptodome==3.23.0
 python-dotenv==1.2.2
 mysql-connector-python==9.6.0
+numpy==2.4.3
