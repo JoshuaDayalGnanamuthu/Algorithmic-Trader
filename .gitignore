@@ -1,1 +1,4 @@
 credentials.env
+information.log
+trades.log
+__pycache__/
