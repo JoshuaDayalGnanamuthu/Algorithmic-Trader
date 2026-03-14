@@ -35,7 +35,7 @@ def CalculateBollinger(closes, period=20):
 
 def SafeDivide(a, b) -> float:
     if b == 0 or np.isnan(b) or np.isinf(b):
-        return 0.0
+        return 0.01
     return a / b
 
 def CalculateRSI(prices: list[float], period: int = 14) -> float | None:
@@ -113,9 +113,9 @@ X_train, X_val, Y_train, Y_val = train_test_split(X_scaled, Y, test_size=0.2, sh
 model = ModularNeuralNet(input_size=12, hidden_layers=[64, 32, 16, 8, 1],
                           activation='relu', final_activation='sigmoid')
 
-model.train(X_train, Y_train, epochs=55000, learning_rate=0.001,
-    batch_size=64, learning_rate_decay=0.99, decay_interval=50,
-    validation_data=(X_val, Y_val), early_stopping_patience=55000,
+model.train(X_train, Y_train, epochs=55000, learning_rate=0.0005,
+    batch_size=64, learning_rate_decay=0.999, decay_interval=50,
+    validation_data=(X_val, Y_val), early_stopping_patience=750,
     print_interval=100)
 
 metrics, _ = model.evaluate(X_val, Y_val)

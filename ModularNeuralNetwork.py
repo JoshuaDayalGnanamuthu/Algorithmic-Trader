@@ -138,6 +138,7 @@ class ModularNeuralNet:
         """
         m = Y.shape[1]
         gradients = {}
+        clip_value = 5.0 
 
         for i in range(self.num_layers - 1, 0, -1):
             A = caches[f'A{i}']
@@ -149,7 +150,8 @@ class ModularNeuralNet:
                 dZ = dA * self.final_activation_derivative(Z)
             else:
                 dZ = dA * self.activation_derivative(Z)
-
+                
+            dZ = np.clip(dZ, -clip_value, clip_value)
             gradients[f'dW{i}'] = 1/m * (dZ @ previous.T)
             gradients[f'db{i}'] = 1/m * np.sum(dZ, axis=1, keepdims=True)
 
