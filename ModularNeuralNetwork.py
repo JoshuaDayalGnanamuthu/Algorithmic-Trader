@@ -159,7 +159,7 @@ class ModularNeuralNet:
 
         return gradients
 
-    def refresh_paramters(self, gradients, learning_rate):
+    def refresh_parameters(self, gradients, learning_rate):
         """
         Update parameters using gradient descent.
 
