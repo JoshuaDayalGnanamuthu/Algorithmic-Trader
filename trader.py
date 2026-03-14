@@ -18,7 +18,6 @@ from statistics import mean
 # FIX [TODO]: Bot should be aware of market hours and market open days and only operate during those times, to avoid unnecessary checks and potential errors when the market is closed.
 # FIX [TODO]: Add a feature to backtest the RSI strategy using historical data, to evaluate its performance and optimize parameters before deploying it in live trading.
 # FIX [TODO]: Add a GUI interface to allow users to easily configure the bot, view logs, and monitor performance without needing to interact with the code directly.
-# FIX [TODO]: Incoporate ChatGPT to analyze news and social media sentiment for the stocks in the watchlist, to enhance the decision-making process and potentially improve trading performance.
 # FIX [TODO]: Add a feature to automatically update the watchlist based on certain criteria, such as stocks with high volatility or strong technical indicators, to ensure the bot is always monitoring relevant trading opportunities.
 # FIX [TODO]: Test feature to analyze what would have happened if we followed through on all the decisions the bot made, to evaluate the effectiveness of the strategy before actually executing trades in a live environment.
 # FIX [TODO]: Add a feature to automatically adjust the RSI thresholds based on market conditions, such as increasing the oversold threshold during a strong downtrend, to improve the adaptability of the strategy.
@@ -41,12 +40,9 @@ RSI_OVERBOUGHT   = 70      # RSI above this → SELL alert
 CHECK_INTERVAL   = 300     # Seconds between checks (300 = 5 minutes)
 
 WATCHLIST = [
-    "AAPL", "TSLA", "ASTS", "NVDA", "AMZN", "RKLB",
-    "MSFT", "GOOGL", "META", "AMD", "INTC",
-    "RIVN", "LCID", "NIO",
-    "SMCI", "AVGO", "TSM", "MU",
-    "LUNR", "SPCE", "PL", "ASTS"
-    "COIN", "MARA", "RIOT", "PLTR", "SOFI"
+    "AAPL", "TSLA", "NVDA", "AMZN", "MSFT",
+    "ASTS", "RKLB", "PLTR", "SPY", "QQQ",
+    "META", "GOOGL", "AMD", "NFLX", "BABA"
 ]
 
 def LOGCONFIG(name: str, log_file: str, console: bool = True) -> logging.Logger:
@@ -132,9 +128,9 @@ def DECRYPTLOGS() -> None:
 def LOGIN(username: str = USERNAME, password: str = PASSWORD) -> None:
     try:
         rh.login(username, password)
-        INFOLOGGER("Logged in successfully.")
+        #INFOLOGGER("Logged in successfully.")
     except Exception as e:
-        ERRORLOGGER(f"Login failed: {e}")
+        #ERRORLOGGER(f"Login failed: {e}")
         exit(1)
 
 def LASTTRANSACTION(ticker: str = None) -> date | None:
@@ -232,7 +228,7 @@ def LASTPRICE(ticker: str) -> float | None:
         return None
 
 def LOGOUT() -> None:
-    INFOLOGGER("Logging out...")
+    #INFOLOGGER("Logging out...")
     rh.authentication.logout()
 
 def SQLCLOSE() -> None:
@@ -242,11 +238,6 @@ def SQLCLOSE() -> None:
         conn.close()
 
 LOGIN()
-print("Current Holdings:", STOCKS := HOLDINGS())
-print("Current Buying Power:", BUYINGPOWER())
-LASTTRANSACTION("RKLB")
-LASTTRANSACTION("ASTS")
-#SELLORDER("RKLB", 1, LASTPRICE("RKLB"))
 LOGOUT()
 SQLCLOSE()
 
