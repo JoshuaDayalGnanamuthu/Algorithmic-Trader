@@ -40,9 +40,9 @@ RSI_OVERBOUGHT   = 70      # RSI above this → SELL alert
 CHECK_INTERVAL   = 300     # Seconds between checks (300 = 5 minutes)
 
 WATCHLIST = [
-    "AAPL", "TSLA", "NVDA", "AMZN", "MSFT",
-    "ASTS", "RKLB", "PLTR", "SPY", "QQQ",
-    "META", "GOOGL", "AMD", "NFLX", "BABA"
+    "AAPL", "TSLA", "ASTS", "NVDA", "AMZN",
+    "MSFT", "GOOGL", "META", "AMD", "INTC",
+    "RIVN", "RKLB"
 ]
 
 def LOGCONFIG(name: str, log_file: str, console: bool = True) -> logging.Logger:
