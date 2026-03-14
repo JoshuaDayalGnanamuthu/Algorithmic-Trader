@@ -4,3 +4,5 @@ cryptodome==3.23.0
 python-dotenv==1.2.2
 mysql-connector-python==9.6.0
 numpy==2.4.3
+scikit-learn==1.8.0
+joblib==1.5.3
