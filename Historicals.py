@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 import robin_stocks.robinhood as rh
 from trader import LOGIN, LOGOUT, WATCHLIST
+from ModularNeuralNetwork import ModularNeuralNet
 import numpy as np
 from statistics import mean
 
@@ -70,5 +71,16 @@ def BuildTrainingData(tickers: list[str] = WATCHLIST) -> tuple[np.array, np.arra
             Y.append(label)
 
     return np.array(X), np.array(Y)
+
+X, Y = BuildTrainingData(tickers=WATCHLIST)
+model = ModularNeuralNet(input_size=8, hidden_layers=[16, 8, 4, 1], 
+                         activation='relu', final_activation='sigmoid')
+
+model.train(X, Y, epochs=1000, learning_rate=0.01, batch_size=32,
+            learning_rate_decay=0.95, decay_interval=100)
+
+metrics, _ = model.evaluate(X, Y)
+print(metrics)
+model.save_model("trader_model.npy")
 
 LOGOUT()
