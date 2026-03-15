@@ -42,7 +42,7 @@ CHECK_INTERVAL   = 300     # Seconds between checks (300 = 5 minutes)
 WATCHLIST = [
     "AAPL", "TSLA", "ASTS", "NVDA", "AMZN",
     "MSFT", "GOOGL", "META", "AMD", "INTC",
-    "RIVN", "RKLB"
+    "RIVN", "RKLB", "SPY", "QQQ"
 ]
 
 def LOGCONFIG(name: str, log_file: str, console: bool = True) -> logging.Logger:
@@ -237,8 +237,6 @@ def SQLCLOSE() -> None:
     if conn and conn.is_connected():
         conn.close()
 
-LOGIN()
-LOGOUT()
 SQLCLOSE()
 
 
