@@ -10,8 +10,6 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 import joblib
 import math
-import matplotlib.pyplot as plt
-from datetime import datetime
 
 load_dotenv("credentials.env")
 USERNAME = os.getenv("USERNAME")
