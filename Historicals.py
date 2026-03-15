@@ -10,6 +10,8 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 import joblib
 import math
+import matplotlib.pyplot as plt
+from datetime import datetime
 
 load_dotenv("credentials.env")
 USERNAME = os.getenv("USERNAME")
@@ -40,11 +42,6 @@ def SafeDivide(a, b) -> float:
     return a / b
 
 def CalculateRSI(prices: list[float], period: int = 14) -> float | None:
-    """
-    Classic Wilder RSI.
-    Requires at least period + 1 data points.
-    Returns None if there isn't enough data.
-    """
     if len(prices) < period + 1:
         return None
 
@@ -72,7 +69,7 @@ def Volatility(prices: list[float]) -> float | None:
     return stdev(log_ratio)
 
 def BuildTrainingData(tickers: list[str] = WATCHLIST) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
-    X, Y, prices = [], [], []
+    X, Y, prices, timestamps, future, = [], [], [], [], []
 
     for ticker in tickers:
         print(f"Downloading Historical Data: {ticker}")
@@ -80,12 +77,14 @@ def BuildTrainingData(tickers: list[str] = WATCHLIST) -> tuple[np.ndarray, np.nd
             ticker, interval='hour', span='3month', bounds='regular', info=None
         )
         if not data or len(data) < 60:
+            print(f"Download Unsuccessful: {ticker}")
             continue
 
         closes  = np.array([float(d['close_price']) for d in data])
         highs   = np.array([float(d['high_price'])  for d in data])
         lows    = np.array([float(d['low_price'])   for d in data])
         volumes = np.array([float(d['volume'])      for d in data])
+        times   = [d['begins_at'] for d in data]
 
         for i in range(50, len(closes) - 5):
             rsi        = CalculateRSI(list(closes[:i+1]))
@@ -94,37 +93,54 @@ def BuildTrainingData(tickers: list[str] = WATCHLIST) -> tuple[np.ndarray, np.nd
             change_20  = SafeDivide(closes[i] - closes[i-20], closes[i-20])
             ma20_ratio = SafeDivide(closes[i], np.mean(closes[i-20:i]))
             ma50_ratio = SafeDivide(closes[i], np.mean(closes[i-50:i]))
-            volatility_14 = Volatility(closes[i-14:i]) #np.std(closes[i-14:i])
-            volatility_20 = Volatility(closes[i-20:i]) #np.std(closes[i-20:i])
+            volatility_14 = Volatility(closes[i-14:i])
+            volatility_20 = Volatility(closes[i-20:i])
             vol_ratio  = SafeDivide(volumes[i], np.mean(volumes[i-20:i]))
             high_low   = SafeDivide(highs[i] - lows[i], lows[i])
             macd, macd_signal, macd_hist = CalculateMACD(closes[:i+1])
             band_pos = CalculateBollinger(closes[:i+1])
+            # dt = datetime.fromisoformat(times[i].replace("Z", "+00:00"))
+            # hour = dt.hour
+            # hour_sin = math.sin(2 * math.pi * hour / 24)
+            # hour_cos = math.cos(2 * math.pi * hour / 24)
+            intraday_pos = SafeDivide(closes[i] - lows[i], highs[i] - lows[i])
 
             future_return = SafeDivide(closes[i+5] - closes[i], closes[i])
-            label = 1 if future_return > 0.01 else (0 if future_return < -0.005 else None)
+            label = 1 if future_return > 0.01 else (0 if future_return < -0.01 else None)
             if label is None:
                 continue
 
+            future.append(future_return)
             X.append([rsi, change_1, change_5, change_20, ma20_ratio,
                       ma50_ratio, volatility_14, volatility_20, vol_ratio, high_low,
-                      macd, macd_signal, macd_hist, band_pos])
+                      macd, macd_signal, macd_hist, band_pos, intraday_pos])
             Y.append(label)
             prices.append(closes[i])
+            timestamps.append(times[i])
 
     if not X:
         return None
 
-    return np.array(X, dtype=float), np.array(Y, dtype=float), np.array(prices, dtype=float)
+    sort_order = np.argsort(timestamps)
+    X      = np.array(X, dtype=float)[sort_order]
+    Y      = np.array(Y, dtype=float)[sort_order]
+    prices = np.array(prices, dtype=float)[sort_order]
+    future = [future[i] for i in sort_order]
+    timestamps = [timestamps[i] for i in sort_order]
 
-X, Y, prices = BuildTrainingData(WATCHLIST)
+    return X, Y, timestamps, future
+
+X, Y, timestamps, future = BuildTrainingData(WATCHLIST)
 print(f"Total Sample Size: {X.size}")
 scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)
+X_train, X_val, Y_train, Y_val = train_test_split(X, Y, test_size=0.2, shuffle=False)
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_val   = scaler.transform(X_val)
 joblib.dump(scaler, "scaler.save")
-X_train, X_val, Y_train, Y_val = train_test_split(X_scaled, Y, test_size=0.2, shuffle=False)
-
-model = ModularNeuralNet(input_size=14, hidden_layers=[64, 32, 16, 8, 1],
+_, future_val = train_test_split(future, test_size=0.2, shuffle=False)
+_, timestamps_val = train_test_split(timestamps, test_size=0.2, shuffle=False)
+model = ModularNeuralNet(input_size=15, hidden_layers=[64, 32, 16, 8, 1],
                           activation='relu', final_activation='sigmoid')
 
 idx_0 = np.where(Y_train == 0)[0]
@@ -135,10 +151,17 @@ balanced_indices = np.concatenate([idx_0_sampled, idx_1])
 np.random.shuffle(balanced_indices)
 
 X_train_balanced = X_train[balanced_indices]
-Y_train_balanced = Y_train[balanced_indices]
+Y_train_balanced = Y_train[balanced_indices] 
+
 print(f"Train Sample Size: {X_train_balanced.size}")
 print(f"Validation Sample Size: {X_val.size}")
+print(f"Validation Period: {Y_val.size}")
 print(np.unique(Y_train_balanced, return_counts=True))
+unique_hours = len(set(timestamps_val))
+trading_days = unique_hours / 6.5
+print(f"Unique hours:    {unique_hours}")
+print(f"Trading days:    {trading_days:.0f}")
+print(f"Trading months:  {trading_days / 21:.1f}")
 
 model.train(X_train_balanced, Y_train_balanced, epochs=55000, learning_rate=0.0005,
     batch_size=64, learning_rate_decay=0.999, decay_interval=50,
@@ -148,4 +171,5 @@ model.train(X_train_balanced, Y_train_balanced, epochs=55000, learning_rate=0.00
 metrics, _ = model.evaluate(X_val, Y_val)
 print(metrics)
 model.save_model("trader_model.npy")
+
 LOGOUT()
