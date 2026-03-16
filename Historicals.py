@@ -17,7 +17,7 @@ PASSWORD = os.getenv("PASSWORD")
 
 LOGIN(username=USERNAME, password=PASSWORD)
 
-def CalculateMACD(closes, fast=12, slow=26, signal=9):
+def CalculateMACD(closes, fast=12, slow=26, signal=9) -> tuple[float, float, float]:
     ema_fast   = pd.Series(closes).ewm(span=fast).mean()
     ema_slow   = pd.Series(closes).ewm(span=slow).mean()
     macd_line  = ema_fast - ema_slow
@@ -25,7 +25,7 @@ def CalculateMACD(closes, fast=12, slow=26, signal=9):
     histogram  = macd_line - signal_line
     return float(macd_line.iloc[-1]), float(signal_line.iloc[-1]), float(histogram.iloc[-1])
 
-def CalculateBollinger(closes, period=20):
+def CalculateBollinger(closes, period=20) -> float:
     closes_series = pd.Series(closes)
     ma  = closes_series.rolling(period).mean()
     std = closes_series.rolling(period).std()
@@ -128,46 +128,54 @@ def BuildTrainingData(tickers: list[str] = WATCHLIST) -> tuple[np.ndarray, np.nd
 
     return X, Y, timestamps, future
 
-X, Y, timestamps, future = BuildTrainingData(WATCHLIST)
-print(f"Total Sample Size: {X.size}")
-scaler = StandardScaler()
-X_train, X_val, Y_train, Y_val = train_test_split(X, Y, test_size=0.2, shuffle=False)
-scaler = StandardScaler()
-X_train = scaler.fit_transform(X_train)
-X_val   = scaler.transform(X_val)
-joblib.dump(scaler, "scaler.save")
-_, future_val = train_test_split(future, test_size=0.2, shuffle=False)
-_, timestamps_val = train_test_split(timestamps, test_size=0.2, shuffle=False)
-model = ModularNeuralNet(input_size=15, hidden_layers=[64, 32, 16, 8, 1],
-                          activation='relu', final_activation='sigmoid')
+def Train():
+    X, Y, timestamps, future = BuildTrainingData(WATCHLIST)
+    print(f"Total Sample Size: {X.size}")
+    scaler = StandardScaler()
+    X_train, X_val, Y_train, Y_val = train_test_split(X, Y, test_size=0.2, shuffle=False)
+    scaler = StandardScaler()
+    X_train = scaler.fit_transform(X_train)
+    X_val   = scaler.transform(X_val)
+    joblib.dump(scaler, "scaler.save")
+    _, future_val = train_test_split(future, test_size=0.2, shuffle=False)
+    _, timestamps_val = train_test_split(timestamps, test_size=0.2, shuffle=False)
+    model = ModularNeuralNet(input_size=15, hidden_layers=[64, 32, 16, 8, 1],
+                            activation='relu', final_activation='sigmoid')
 
-idx_0 = np.where(Y_train == 0)[0]
-idx_1 = np.where(Y_train == 1)[0]
-num_to_keep = len(idx_1)
-idx_0_sampled = np.random.choice(idx_0, num_to_keep, replace=False)
-balanced_indices = np.concatenate([idx_0_sampled, idx_1])
-np.random.shuffle(balanced_indices)
+    idx_0 = np.where(Y_train == 0)[0]
+    idx_1 = np.where(Y_train == 1)[0]
+    num_to_keep = len(idx_1)
+    idx_0_sampled = np.random.choice(idx_0, num_to_keep, replace=False)
+    balanced_indices = np.concatenate([idx_0_sampled, idx_1])
+    np.random.shuffle(balanced_indices)
 
-X_train_balanced = X_train[balanced_indices]
-Y_train_balanced = Y_train[balanced_indices] 
+    X_train_balanced = X_train[balanced_indices]
+    Y_train_balanced = Y_train[balanced_indices] 
 
-print(f"Train Sample Size: {X_train_balanced.size}")
-print(f"Validation Sample Size: {X_val.size}")
-print(f"Validation Period: {Y_val.size}")
-print(np.unique(Y_train_balanced, return_counts=True))
-unique_hours = len(set(timestamps_val))
-trading_days = unique_hours / 6.5
-print(f"Unique hours:    {unique_hours}")
-print(f"Trading days:    {trading_days:.0f}")
-print(f"Trading months:  {trading_days / 21:.1f}")
+    print(f"Train Sample Size: {X_train_balanced.size}")
+    print(f"Validation Sample Size: {X_val.size}")
+    print(f"Validation Period: {Y_val.size}")
+    print(np.unique(Y_train_balanced, return_counts=True))
+    unique_hours = len(set(timestamps_val))
+    trading_days = unique_hours / 6.5
+    print(f"Unique hours:    {unique_hours}")
+    print(f"Trading days:    {trading_days:.0f}")
+    print(f"Trading months:  {trading_days / 21:.1f}")
 
-model.train(X_train_balanced, Y_train_balanced, epochs=55000, learning_rate=0.0005,
-    batch_size=64, learning_rate_decay=0.999, decay_interval=50,
-    validation_data=(X_val, Y_val), early_stopping_patience=750,
-    print_interval=100)
+    model.train(X_train_balanced, Y_train_balanced, epochs=55000, learning_rate=0.0005,
+        batch_size=64, learning_rate_decay=0.999, decay_interval=50,
+        validation_data=(X_val, Y_val), early_stopping_patience=750,
+        print_interval=100)
 
-metrics, _ = model.evaluate(X_val, Y_val)
-print(metrics)
-model.save_model("trader_model.npy")
+    metrics, _ = model.evaluate(X_val, Y_val)
+    print(metrics)
+    model.save_model("trader_model.npy")
+    np.save("X_validate.npy", X_val)
+    np.save("Y_validate.npy", Y_val)
+    np.save("future_returns.npy", np.array(future_val))
+    np.save("timestamps_val.npy", np.array(timestamps_val))
+
+if __name__ == "__main__":
+    Train()
 
 LOGOUT()
