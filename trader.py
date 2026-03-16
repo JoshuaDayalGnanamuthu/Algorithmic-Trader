@@ -23,7 +23,7 @@ from ModularNeuralNetwork import ModularNeuralNet
 load_dotenv("credentials.env") # Load environment variables from .env file
 USERNAME = os.getenv("USERNAME") # Set your Robinhood username as an environment variable
 PASSWORD = os.getenv("PASSWORD") # Set your Robinhood password as an environment variable
-MODEL = ModularNeuralNet.load_model('trader_model.npy')
+MODEL = ModularNeuralNet.load_model(r"/Users/joshuadayal/Documents/Python/Algorithmic-Trader/files/trader_model.npy")
 PRIVATE_KEY = os.getenv("PRIVATE_KEY").replace("\\n", "\n") # Set your RSA private key as an environment variable
 PUBLIC_KEY = os.getenv("PUBLIC_KEY").replace("\\n", "\n") # Set your RSA public key as an environment variable
 PRIVATE_KEY = RSA.import_key(PRIVATE_KEY)
