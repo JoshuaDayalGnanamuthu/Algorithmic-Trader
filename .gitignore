@@ -5,3 +5,4 @@ error.log
 __pycache__/
 test.py 
 tradermodel2.npy
+/logs
