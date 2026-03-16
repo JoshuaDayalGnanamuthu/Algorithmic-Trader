@@ -74,9 +74,9 @@ def SQLCONNECT() -> my.MySQLConnection | None:
 
 conn = SQLCONNECT()
 cursor = conn.cursor() if conn else None
-infolog = LOGCONFIG("INFO", "information.log")
-errorlog = LOGCONFIG("ERROR", "error.log")
-tradeslog = LOGCONFIG("TRADES", "trades.log", console=False)
+infolog = LOGCONFIG("INFO", r"logs/information.log")
+errorlog = LOGCONFIG("ERROR", r"logs/error.log")
+tradeslog = LOGCONFIG("TRADES", r"logs/trades.log", console=False)
 
 def ERRORLOGGER(message: str) -> None:
     QUERY = "INSERT INTO ERRORS (TYPE, MESSAGE) VALUES (%s, %s)"
