@@ -10,6 +10,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 import joblib
 import math
+from datetime import datetime
 
 load_dotenv("credentials.env")
 USERNAME = os.getenv("USERNAME")
@@ -66,6 +67,16 @@ def Volatility(prices: list[float]) -> float | None:
         log_ratio.append(math.log(SafeDivide(prices[i], prices[i-1])))
     return stdev(log_ratio)
 
+def CalculateATR(highs: list[float], lows: list[float], closes: list[float], period=14) ->float:
+    trs = []
+    for j in range(1, len(closes)):
+        tr = max(highs[j] - lows[j],
+                 abs(highs[j] - closes[j-1]),
+                 abs(lows[j] - closes[j-1]))
+        trs.append(tr)
+    atr = np.mean(trs[-period:])
+    return SafeDivide(atr, closes[-1])
+
 def BuildTrainingData(tickers: list[str] = WATCHLIST) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
     X, Y, prices, timestamps, future, = [], [], [], [], []
 
@@ -102,16 +113,20 @@ def BuildTrainingData(tickers: list[str] = WATCHLIST) -> tuple[np.ndarray, np.nd
             # hour_sin = math.sin(2 * math.pi * hour / 24)
             # hour_cos = math.cos(2 * math.pi * hour / 24)
             intraday_pos = SafeDivide(closes[i] - lows[i], highs[i] - lows[i])
+            ticker_idx = WATCHLIST.index(ticker) / len(WATCHLIST)
+            log_avg_vol = math.log(np.mean(volumes[i-20:i]) + 1)
+            atr = CalculateATR(highs[i-14:i+1], lows[i-14:i+1], closes[i-14:i+1])
 
             future_return = SafeDivide(closes[i+5] - closes[i], closes[i])
-            label = 1 if future_return > 0.01 else (0 if future_return < -0.01 else None)
+            label = 1 if future_return > 0.015 else (0 if future_return < -0.015 else None)
             if label is None:
                 continue
 
             future.append(future_return)
             X.append([rsi, change_1, change_5, change_20, ma20_ratio,
                       ma50_ratio, volatility_14, volatility_20, vol_ratio, high_low,
-                      macd, macd_signal, macd_hist, band_pos, intraday_pos])
+                      macd, macd_signal, macd_hist, band_pos, intraday_pos,ticker_idx, 
+                      log_avg_vol, atr])
             Y.append(label)
             prices.append(closes[i])
             timestamps.append(times[i])
@@ -136,10 +151,10 @@ def Train():
     scaler = StandardScaler()
     X_train = scaler.fit_transform(X_train)
     X_val   = scaler.transform(X_val)
-    joblib.dump(scaler, "scaler.save")
+    joblib.dump(scaler, "files/scaler.save")
     _, future_val = train_test_split(future, test_size=0.2, shuffle=False)
     _, timestamps_val = train_test_split(timestamps, test_size=0.2, shuffle=False)
-    model = ModularNeuralNet(input_size=15, hidden_layers=[64, 32, 16, 8, 1],
+    model = ModularNeuralNet(input_size=18, hidden_layers=[128, 64, 32, 16, 1],
                             activation='relu', final_activation='sigmoid')
 
     idx_0 = np.where(Y_train == 0)[0]
@@ -164,16 +179,16 @@ def Train():
 
     model.train(X_train_balanced, Y_train_balanced, epochs=55000, learning_rate=0.0005,
         batch_size=64, learning_rate_decay=0.999, decay_interval=50,
-        validation_data=(X_val, Y_val), early_stopping_patience=750,
+        validation_data=(X_val, Y_val), early_stopping_patience=500,
         print_interval=100)
 
     metrics, _ = model.evaluate(X_val, Y_val)
     print(metrics)
-    model.save_model("trader_model.npy")
-    np.save("X_validate.npy", X_val)
-    np.save("Y_validate.npy", Y_val)
-    np.save("future_returns.npy", np.array(future_val))
-    np.save("timestamps_val.npy", np.array(timestamps_val))
+    model.save_model("files/trader_model.npy")
+    np.save("files/X_validate.npy", X_val)
+    np.save("files/Y_validate.npy", Y_val)
+    np.save("files/future_returns.npy", np.array(future_val))
+    np.save("files/timestamps_val.npy", np.array(timestamps_val))
 
 if __name__ == "__main__":
     Train()
