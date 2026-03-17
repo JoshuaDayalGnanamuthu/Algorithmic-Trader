@@ -165,7 +165,7 @@ def Train():
     np.random.shuffle(balanced_indices)
 
     X_train_balanced = X_train[balanced_indices]
-    Y_train_balanced = Y_train[balanced_indices] 
+    Y_train_balanced = Y_train[balanced_indices]
 
     print(f"Train Sample Size: {X_train_balanced.size}")
     print(f"Validation Sample Size: {X_val.size}")
