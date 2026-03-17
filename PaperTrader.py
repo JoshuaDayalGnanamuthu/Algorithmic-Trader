@@ -267,7 +267,7 @@ def main():
                         break
                     if HOLDINGS[ticker] > 0:
                         continue
-                    if confidence > 0.65:
+                    if confidence > 0.60:
                         spend = POSITION_SIZE
                         if spend > CAPITAL:
                             continue
