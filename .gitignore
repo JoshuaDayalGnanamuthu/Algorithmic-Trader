@@ -1,8 +1,7 @@
 credentials.env
-information.log
 trades.log
-error.log
 __pycache__/
 test.py 
-tradermodel2.npy
+files/trader_model2.npy
 /logs
+trader.log
