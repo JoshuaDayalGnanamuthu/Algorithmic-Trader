@@ -31,7 +31,7 @@ HOLDINGS = dict.fromkeys(WATCHLIST, 0.0)
 PURCHASE_PRICES = dict.fromkeys(WATCHLIST, 0.0)
 BUY_TIMESTAMPS  = dict.fromkeys(WATCHLIST, None)
 
-SCAN_INTERVAL = 1800
+SCAN_INTERVAL = 300
 TAKE_PROFIT = 0.03
 STOP_LOSS  = 0.03
 POSITION_SIZE = 5000
@@ -258,13 +258,16 @@ def main():
                         if features is None:
                             continue
                         features_scaled = scaler.transform(features)
-                        predictions[ticker] = float(MODEL.predict(features_scaled).flatten()[0])
+                        raw = MODEL.predict_probability(features_scaled).flatten()[0]
+                        predictions[ticker] = float(raw)
 
                 ranked = sorted(predictions.items(), key=lambda x: x[1], reverse=True)
                 for ticker, confidence in ranked:
                     if open_positions >= MAX_POSITIONS:
                         break
-                    if confidence > 0.55:
+                    if HOLDINGS[ticker] > 0:
+                        continue
+                    if confidence > 0.65:
                         spend = POSITION_SIZE
                         if spend > CAPITAL:
                             continue
