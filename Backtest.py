@@ -25,7 +25,7 @@ def signed_col(value, fmt=".2f"):
     sign  = "+" if value >= 0 else ""
     return col(f"{sign}{value:{fmt}}", color, C.BOLD)
 
-def load_artifacts(model_path=r"files/trader_model.npy",
+def load_artifacts(model_path=r"files/trader_model2.npy",
                    x_path=r"files/X_validate.npy",
                    future_path=r"files/future_returns.npy"):
     model          = ModularNeuralNet.load_model(model_path)
