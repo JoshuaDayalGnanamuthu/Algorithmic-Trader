@@ -277,7 +277,7 @@ class PaperTrader:
             self.logging.warning("Running without database.")
 
         self.logging.info("=" * 50)
-        self.logging.info("         ALGO TRADER STARTED")
+        self.logging.info("ALGO TRADER STARTED".center(50))
         self.logging.info("=" * 50)
         try:
             while True:
@@ -288,7 +288,8 @@ class PaperTrader:
                     continue
 
                 now = datetime.now()
-                self.logging.info(f"── Scan [{now.strftime('%H:%M:%S')}] ──────────────────────")
+                label = f" Scan [{now.strftime('%H:%M:%S')}] "
+                self.logging.info(label.center(50, '─'))
                 prices_raw = rh.stocks.get_latest_price(self.watchlist)
                 prices = {t: float(p) for t, p in zip(self.watchlist, prices_raw)}
 
@@ -315,7 +316,7 @@ class PaperTrader:
                             if features is None:
                                 continue
                             features_scaled = self.scaler.transform(features)
-                            predictions[ticker] = float(self.model.predict_proba(features_scaled).flatten()[0])
+                            predictions[ticker] = float(self.model.predict_probability(features_scaled).flatten()[0])
 
                     ranked = sorted(predictions.items(), key=lambda x: x[1], reverse=True)
                     for ticker, confidence in ranked:
