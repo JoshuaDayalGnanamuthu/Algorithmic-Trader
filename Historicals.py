@@ -1,7 +1,4 @@
-import os
-from dotenv import load_dotenv
 import robin_stocks.robinhood as rh
-from trader import LOGIN, LOGOUT, WATCHLIST
 from ModularNeuralNetwork import ModularNeuralNet
 import numpy as np
 from statistics import mean, stdev
@@ -12,9 +9,12 @@ import joblib
 import math
 from datetime import datetime
 
-load_dotenv("credentials.env")
-USERNAME = os.getenv("USERNAME")
-PASSWORD = os.getenv("PASSWORD") 
+WATCHLIST = [
+    "AAPL", "TSLA", "ASTS", "NVDA", "AMZN",
+    "MSFT", "GOOGL", "META", "AMD", "RIVN", 
+    "RKLB", "SPY", "QQQ"
+]
+
 
 def CalculateMACD(closes, fast=12, slow=26, signal=9) -> tuple[float, float, float]:
     ema_fast   = pd.Series(closes).ewm(span=fast).mean()
