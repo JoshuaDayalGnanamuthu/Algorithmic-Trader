@@ -16,8 +16,6 @@ load_dotenv("credentials.env")
 USERNAME = os.getenv("USERNAME")
 PASSWORD = os.getenv("PASSWORD") 
 
-LOGIN(username=USERNAME, password=PASSWORD)
-
 def CalculateMACD(closes, fast=12, slow=26, signal=9) -> tuple[float, float, float]:
     ema_fast   = pd.Series(closes).ewm(span=fast).mean()
     ema_slow   = pd.Series(closes).ewm(span=slow).mean()
@@ -193,4 +191,3 @@ def Train():
 if __name__ == "__main__":
     Train()
 
-LOGOUT()
