@@ -10,9 +10,46 @@ import math
 from datetime import datetime
 
 WATCHLIST = [
+    # Mega-cap Tech
     "AAPL", "TSLA", "ASTS", "NVDA", "AMZN",
-    "MSFT", "GOOGL", "META", "AMD", "RIVN", 
-    "RKLB", "SPY", "QQQ"
+    "MSFT", "GOOGL", "META", "AMD", "INTC",
+
+    # AI / Semiconductors
+    "AVGO",   # Broadcom
+    "QCOM",   # Qualcomm
+    "ARM",    # Arm Holdings
+    "MRVL",   # Marvell Technology
+    "SMCI",   # Super Micro Computer
+    "TSM",    # Taiwan Semiconductor
+    "ASML",   # ASML Holding
+    "MU",     # Micron Technology
+
+    # EV / Clean Energy
+    "RIVN", "NIO", "LCID", "F", "GM",
+    "CHPT",   # ChargePoint
+    "BLNK",   # Blink Charging
+    "ENPH",   # Enphase Energy
+
+    # Space / Defense Tech
+    "RKLB",
+    "SPCE",   # Virgin Galactic
+    "BWXT",   # BWX Technologies
+    "LMT",    # Lockheed Martin
+    "RTX",    # Raytheon
+
+    # Growth / Software
+    "CRM",    # Salesforce
+    "NOW",    # ServiceNow
+    "SNOW",   # Snowflake
+    "PLTR",   # Palantir
+    "NET",    # Cloudflare
+
+    # ETFs
+    "SPY", "QQQ",
+    "SOXX",   # Semiconductor ETF
+    "ARKK",   # ARK Innovation ETF
+    "IWM",    # Russell 2000
+    "XLK",    # Tech Sector ETF
 ]
 
 
@@ -152,7 +189,7 @@ def Train():
     joblib.dump(scaler, "files/scaler.save")
     _, future_val = train_test_split(future, test_size=0.2, shuffle=False)
     _, timestamps_val = train_test_split(timestamps, test_size=0.2, shuffle=False)
-    model = ModularNeuralNet(input_size=18, hidden_layers=[128, 64, 32, 16, 1],
+    model = ModularNeuralNet(input_size=18, hidden_layers=[512, 256, 128, 64, 32],
                             activation='relu', final_activation='sigmoid')
 
     idx_0 = np.where(Y_train == 0)[0]
@@ -175,9 +212,9 @@ def Train():
     print(f"Trading days:    {trading_days:.0f}")
     print(f"Trading months:  {trading_days / 21:.1f}")
 
-    model.train(X_train_balanced, Y_train_balanced, epochs=55000, learning_rate=0.0005,
+    model.train(X_train_balanced, Y_train_balanced, epochs=5000, learning_rate=0.0005,
         batch_size=64, learning_rate_decay=0.999, decay_interval=50,
-        validation_data=(X_val, Y_val), early_stopping_patience=500,
+        validation_data=(X_val, Y_val), early_stopping_patience=200,
         print_interval=100)
 
     metrics, _ = model.evaluate(X_val, Y_val)
