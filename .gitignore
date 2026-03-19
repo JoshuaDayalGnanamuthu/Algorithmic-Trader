@@ -5,3 +5,4 @@ test.py
 files/trader_model2.npy
 /logs
 trader.log
+/daily_logs
