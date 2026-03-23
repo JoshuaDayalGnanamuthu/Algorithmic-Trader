@@ -1,4 +1,4 @@
-from ModularNeuralNetwork import ModularNeuralNet
+from training.ModularNeuralNetwork import ModularNeuralNet
 from datetime import datetime, timedelta
 import robin_stocks.robinhood as rh
 from statistics import mean, stdev
