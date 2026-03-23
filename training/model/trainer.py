@@ -3,11 +3,11 @@ import joblib
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from ModularNeuralNetwork import ModularNeuralNet
-from config import MODEL_CONFIG, TRAIN_CONFIG, PATHS
+from config import MODEL_CONFIG, SPLIT_CONFIG, PATHS, TRAIN_CONFIG
 
 def PrepareData(X, Y, future, timestamps):
     X_train, X_val, Y_train, Y_val = train_test_split(
-        X, Y, test_size=TRAIN_CONFIG["test_size"], shuffle=False
+        X, Y, test_size=SPLIT_CONFIG["test_size"], shuffle=False
     )
     scaler = StandardScaler()
     X_train = scaler.fit_transform(X_train)
@@ -20,8 +20,8 @@ def PrepareData(X, Y, future, timestamps):
     idx_0_sampled = np.random.choice(idx_0, len(idx_1), replace=False)
     balanced = np.random.permutation(np.concatenate([idx_0_sampled, idx_1]))
 
-    _, future_val     = train_test_split(future,     test_size=TRAIN_CONFIG["test_size"], shuffle=False)
-    _, timestamps_val = train_test_split(timestamps, test_size=TRAIN_CONFIG["test_size"], shuffle=False)
+    _, future_val     = train_test_split(future,     test_size=SPLIT_CONFIG["test_size"], shuffle=False)
+    _, timestamps_val = train_test_split(timestamps, test_size=SPLIT_CONFIG["test_size"], shuffle=False)
 
     return X_train[balanced], Y_train[balanced], X_val, Y_val, future_val, timestamps_val
 
