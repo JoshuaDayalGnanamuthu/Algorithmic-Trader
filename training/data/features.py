@@ -1,9 +1,9 @@
-import numpy as np
-import math
-import pandas as pd
-from statistics import mean, stdev
 from utils.math_utils import *
 from config import DATA_CONFIG, LABEL_CONFIG
+import pandas as pd
+import numpy as np
+import math
+
 
 def BuildFeatureVector(closes, highs, lows, volumes, i, ticker_idx) -> list[float]:
     return [
