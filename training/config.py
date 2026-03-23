@@ -67,18 +67,22 @@ TRAIN_CONFIG = {
     "epochs": 5000,
     "learning_rate": 0.0005,
     "batch_size": 64,
-    "lr_decay": 0.999,
+    "learning_rate_decay": 0.999,
     "decay_interval": 50,
-    "early_stopping_patience": 200,
+    "early_stopping_patience": 750,
     "print_interval": 100,
+
+}
+
+SPLIT_CONFIG = {
     "test_size": 0.2,
 }
 
 PATHS = {
-    "scaler": "../files/scaler.save",
-    "model": "../files/trader_model.npy",
-    "X_val": "../files/X_validate.npy",
-    "Y_val": "../files/Y_validate.npy",
-    "future": "../files/future_returns.npy",
-    "timestamps": "../files/timestamps_val.npy",
+    "scaler": "/Users/joshuadayal/Documents/Python/Algorithmic-Trader/files/scaler.save",
+    "model": "/Users/joshuadayal/Documents/Python/Algorithmic-Trader/files/trader_model.npy",
+    "X_val": "/Users/joshuadayal/Documents/Python/Algorithmic-Trader/files/X_validate.npy",
+    "Y_val": "/Users/joshuadayal/Documents/Python/Algorithmic-Trader/files/Y_validate.npy",
+    "future": "/Users/joshuadayal/Documents/Python/Algorithmic-Trader/files/future_returns.npy",
+    "timestamps": "/Users/joshuadayal/Documents/Python/Algorithmic-Trader/files/timestamps_val.npy",
 }
