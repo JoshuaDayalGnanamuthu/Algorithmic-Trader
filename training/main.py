@@ -1,3 +1,6 @@
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from config import WATCHLIST, DATA_CONFIG
 from data.fetcher import FetchAll
 from data.features import BuildDataset
