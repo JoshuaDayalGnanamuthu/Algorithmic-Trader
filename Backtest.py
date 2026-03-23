@@ -25,7 +25,7 @@ def signed_col(value, fmt=".2f"):
     sign  = "+" if value >= 0 else ""
     return col(f"{sign}{value:{fmt}}", color, C.BOLD)
 
-def load_artifacts(model_path=r"files/trader_model2.npy",
+def load_artifacts(model_path=r"files/trader_model.npy",
                    x_path=r"files/X_validate.npy",
                    future_path=r"files/future_returns.npy"):
     model          = ModularNeuralNet.load_model(model_path)
@@ -252,7 +252,7 @@ def plot_results(result, metrics, probabilities):
 
 def main():
     model, X_val, future_returns = load_artifacts()
-    signals, probabilities       = generate_signals(model, X_val, threshold=0.5)
+    signals, probabilities       = generate_signals(model, X_val, threshold=0.51)
     result                       = run_backtest(signals, future_returns)
     metrics                      = compute_metrics(result)
 

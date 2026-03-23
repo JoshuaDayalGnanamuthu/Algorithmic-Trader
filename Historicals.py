@@ -212,18 +212,23 @@ def Train():
     print(f"Trading days:    {trading_days:.0f}")
     print(f"Trading months:  {trading_days / 21:.1f}")
 
-    model.train(X_train_balanced, Y_train_balanced, epochs=5000, learning_rate=0.0005,
-        batch_size=64, learning_rate_decay=0.999, decay_interval=50,
-        validation_data=(X_val, Y_val), early_stopping_patience=200,
-        print_interval=100)
+    while True:
+        model.train(X_train_balanced, Y_train_balanced, epochs=5000, learning_rate=0.0005,
+            batch_size=64, learning_rate_decay=0.999, decay_interval=50,
+            validation_data=(X_val, Y_val), early_stopping_patience=200,
+            print_interval=100)
 
-    metrics, _ = model.evaluate(X_val, Y_val)
-    print(metrics)
-    model.save_model("files/trader_model.npy")
-    np.save("files/X_validate.npy", X_val)
-    np.save("files/Y_validate.npy", Y_val)
-    np.save("files/future_returns.npy", np.array(future_val))
-    np.save("files/timestamps_val.npy", np.array(timestamps_val))
+        metrics, _ = model.evaluate(X_val, Y_val)
+        print(metrics)
+        model.save_model("files/trader_model.npy")
+        np.save("files/X_validate.npy", X_val)
+        np.save("files/Y_validate.npy", Y_val)
+        np.save("files/future_returns.npy", np.array(future_val))
+        np.save("files/timestamps_val.npy", np.array(timestamps_val))
+        choice = input("Enter Y/y to retrain: ")
+        if choice.lower() == "y":
+            continue
+        break
 
 if __name__ == "__main__":
     Train()
