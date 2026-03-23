@@ -73,7 +73,7 @@ class PaperTrader:
         self.take_profit = 0.03
         self.stop_loss = 0.03
         self.position_size = 5000
-        self.max_positions = 7
+        self.max_positions = 10
         logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s",
             handlers=[logging.FileHandler("trades.log"), logging.StreamHandler()])
         self.logging = logging.getLogger(__name__)
@@ -361,7 +361,7 @@ class PaperTrader:
                     for ticker, confidence in ranked:
                         if open_positions >= self.max_positions:
                             break
-                        if confidence > 0.60:
+                        if confidence > 0.55:
                             current_price = self.LivePrice(ticker)
                             if self.BuyOrder(ticker, current_price, self.position_size, confidence):
                                 open_positions += 1
