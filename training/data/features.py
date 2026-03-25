@@ -51,7 +51,7 @@ def BuildDataset(raw_data: dict, watchlist: list[str]) -> tuple:
         warmup     = DATA_CONFIG["warmup"]
         forward    = DATA_CONFIG["forward_bars"]
 
-        for i in range(warmup, len(closes) - forward):
+        for i in range(warmup, len(closes) - 5):
             label, future_return = BuildLabel(closes, i)
             if label is None:
                 continue
