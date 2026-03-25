@@ -5,6 +5,7 @@ import matplotlib.ticker as mticker
 from statistics import mean, stdev
 import numpy as np
 from config import PATHS
+import xgboost as xgb
 
 class C:
     RESET  = "\033[0m"
@@ -26,18 +27,21 @@ def signed_col(value, fmt=".2f"):
     sign  = "+" if value >= 0 else ""
     return col(f"{sign}{value:{fmt}}", color, C.BOLD)
 
-def load_artifacts(model_path=PATHS["model"],
-                   x_path=PATHS["X_val"],
-                   future_path=PATHS["future"]):
-    model          = ModularNeuralNet.load_model(model_path)
+def load_artifacts(model_path=PATHS["xgboost"], x_path=PATHS["X_val"], future_path=PATHS["future"]):
+    model = xgb.XGBClassifier()
+    model.load_model(model_path)
+    # model        = ModularNeuralNet.load_model(model_path)
     X_validate     = np.load(x_path)
     future_returns = np.load(future_path)
     return model, X_validate, future_returns
 
 def generate_signals(model, X, threshold=0.45):
-    raw_preds    = model.predict(X, threshold = threshold)
-    probabilities = model.predict_probability(X).flatten()
-    signals      = (raw_preds.flatten() > threshold).astype(int)
+    # raw_preds    = model.predict(X, threshold = threshold)
+    # probabilities = model.predict_probability(X).flatten()
+    # signals      = (raw_preds.flatten() > threshold).astype(int)
+    # return signals, probabilities
+    probabilities = model.predict_proba(X)[:, 1]
+    signals = (probabilities > threshold).astype(int)
     return signals, probabilities
 
 def run_backtest(signals, future_returns, capital=100_000, position_size=0.05):
@@ -253,7 +257,7 @@ def plot_results(result, metrics, probabilities):
 
 def main():
     model, X_val, future_returns = load_artifacts()
-    signals, probabilities       = generate_signals(model, X_val, threshold=0.51)
+    signals, probabilities       = generate_signals(model, X_val, threshold=0.57)
     result                       = run_backtest(signals, future_returns)
     metrics                      = compute_metrics(result)
 
