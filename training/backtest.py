@@ -257,7 +257,7 @@ def plot_results(result, metrics, probabilities):
 
 def main():
     model, X_val, future_returns = load_artifacts()
-    signals, probabilities       = generate_signals(model, X_val, threshold=0.57)
+    signals, probabilities       = generate_signals(model, X_val, threshold=0.50)
     result                       = run_backtest(signals, future_returns)
     metrics                      = compute_metrics(result)
 

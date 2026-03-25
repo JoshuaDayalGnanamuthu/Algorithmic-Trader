@@ -74,6 +74,18 @@ TRAIN_CONFIG = {
 
 }
 
+XGBOOST_CONFIG = {
+    "n_estimators": 300,
+    "max_depth": 3,
+    "learning_rate": 0.05,
+    "eval_metric": "auc",
+    "subsample": 0.5,
+    "colsample_bytree": 0.5,
+    "colsample_bylevel": 0.5,
+    "reg_alpha": 0.1,
+    "reg_lambda": 1.0
+}
+
 SPLIT_CONFIG = {
     "test_size": 0.2,
 }
