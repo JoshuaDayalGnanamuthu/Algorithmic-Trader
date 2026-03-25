@@ -1,3 +1,8 @@
+"""
+Algorithmic Trading Bot using Robinhood API and ML Model
+Executes buy/sell orders based on neural network or XGBoost predictions with risk management.
+"""
+
 from training.ModularNeuralNetwork import ModularNeuralNet
 from training.data.features import BuildFeatureVector
 from training.utils.math_utils import *
@@ -7,6 +12,7 @@ import robin_stocks.robinhood as rh
 from dataclasses import dataclass
 import mysql.connector as my
 import numpy as np
+import xgboost as xgb
 import holidays
 import logging
 import joblib
@@ -31,22 +37,69 @@ class TradingConfig:
 
 
 class PaperTrader:
-    def __init__(self, username: str, password: str) -> None:
+    def __init__(self, username: str, password: str, model_type: str = "neural_network") -> None:
+        """
+        Initialize PaperTrader with selectable model type.
+        
+        Args:
+            username (str): Robinhood username
+            password (str): Robinhood password
+            model_type (str): Type of model to use - "neural_network" or "xgboost"
+                            Default is "neural_network"
+        
+        Raises:
+            ValueError: If model_type is not "neural_network" or "xgboost"
+        """
+        if model_type not in ["neural_network", "xgboost"]:
+            raise ValueError(f"model_type must be 'neural_network' or 'xgboost', got '{model_type}'")
+        
         self.username = username
         self.password = password
+        self.model_type = model_type
         self.config = TradingConfig()
         self.portfolio = self.config.capital
         self.holdings = dict.fromkeys(self.config.watchlist, 0.0)
         self.purchase_prices = dict.fromkeys(self.config.watchlist, 0.0)
         self.buy_timestamps = dict.fromkeys(self.config.watchlist, None)
-        self.model = ModularNeuralNet.load_model(PATHS["MODEL"])
-        self.scaler = joblib.load(PATHS["SCALER"])
+        self._load_model()
         self.conn = None
         self.cursor = None
         self.no_of_trades = [0]
         logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s",
             handlers=[logging.FileHandler("trades.log"), logging.StreamHandler()])
         self.logging = logging.getLogger(__name__)
+        self.logging.info(f"Initialized PaperTrader with model_type: {self.model_type}")
+    
+    def _load_model(self) -> None:
+        """Load the selected model type and its scaler."""
+        try:
+            if self.model_type == "neural_network":
+                self.model = ModularNeuralNet.load_model(PATHS["model"])
+                self.logging.info("Loaded ModularNeuralNet model")
+            elif self.model_type == "xgboost":
+                self.model = xgb.XGBClassifier()
+                self.model.load_model(PATHS["xgboost"])
+                self.logging.info("Loaded XGBoost model")
+            
+            self.scaler = joblib.load(PATHS["scaler"])
+        except FileNotFoundError as e:
+            self.logging.error(f"Failed to load model or scaler: {e}")
+            raise
+    
+    def _predict_probability(self, features_scaled: np.ndarray) -> float:
+        """
+        Get prediction probability from the selected model.
+        
+        Args:
+            features_scaled (np.ndarray): Scaled feature vector
+        
+        Returns:
+            float: Prediction probability (0-1)
+        """
+        if self.model_type == "neural_network":
+            return float(self.model.predict_probability(features_scaled).flatten()[0])
+        elif self.model_type == "xgboost":
+            return float(self.model.predict_proba(features_scaled)[0, 1])
     
     def Login(self) -> bool:
         try:
@@ -213,6 +266,7 @@ class PaperTrader:
 
         self.logging.info("=" * 50)
         self.logging.info("ALGO TRADER STARTED".center(50))
+        self.logging.info(f"Model Type: {self.model_type.upper()}".center(50))
         self.logging.info("=" * 50)
         try:
             while True:
@@ -251,7 +305,7 @@ class PaperTrader:
                             if features is None:
                                 continue
                             features_scaled = self.scaler.transform(features)
-                            predictions[ticker] = float(self.model.predict_probability(features_scaled).flatten()[0])
+                            predictions[ticker] = self._predict_probability(features_scaled)
 
                     ranked = sorted(predictions.items(), key=lambda x: x[1], reverse=True)
                     for ticker, confidence in ranked:
