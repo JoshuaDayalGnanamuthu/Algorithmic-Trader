@@ -7,3 +7,4 @@ joblib==1.5.3
 matplotlib==3.10.8
 pandas==2.2.3
 pycryptodome==3.23.0
+xgboost==1.7.5
