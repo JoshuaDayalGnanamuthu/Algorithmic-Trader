@@ -85,4 +85,5 @@ PATHS = {
     "Y_val": "/Users/joshuadayal/Documents/Python/Algorithmic-Trader/files/Y_validate.npy",
     "future": "/Users/joshuadayal/Documents/Python/Algorithmic-Trader/files/future_returns.npy",
     "timestamps": "/Users/joshuadayal/Documents/Python/Algorithmic-Trader/files/timestamps_val.npy",
+    "xgboost": "/Users/joshuadayal/Documents/Python/Algorithmic-Trader/files/xgboost_model.json",
 }
