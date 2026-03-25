@@ -4,7 +4,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config import WATCHLIST, DATA_CONFIG
 from data.fetcher import FetchAll
 from data.features import BuildDataset
-from model.trainer import PrepareData, RunTrainingLoop
+from model.xgboost import PrepareData, RunTrainingLoop
 
 if __name__ == "__main__":
     raw_data = FetchAll(WATCHLIST, DATA_CONFIG)
