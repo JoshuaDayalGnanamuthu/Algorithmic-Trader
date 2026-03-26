@@ -4,7 +4,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, classification_report
 import xgboost as xgb
-from config import SPLIT_CONFIG, PATHS, XGBOOST_CONFIG
+from training.config import SPLIT_CONFIG, PATHS, XGBOOST_CONFIG
 
 def PrepareData(X, Y, future, timestamps):
     X_train, X_val, Y_train, Y_val = train_test_split(

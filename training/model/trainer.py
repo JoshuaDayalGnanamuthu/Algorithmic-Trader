@@ -2,8 +2,8 @@ import numpy as np
 import joblib
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
-from ModularNeuralNetwork import ModularNeuralNet
-from config import MODEL_CONFIG, SPLIT_CONFIG, PATHS, TRAIN_CONFIG
+from training.ModularNeuralNetwork import ModularNeuralNet
+from training.config import MODEL_CONFIG, SPLIT_CONFIG, PATHS, TRAIN_CONFIG
 
 def PrepareData(X, Y, future, timestamps):
     X_train, X_val, Y_train, Y_val = train_test_split(

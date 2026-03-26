@@ -1,5 +1,5 @@
-from utils.math_utils import *
-from config import DATA_CONFIG, LABEL_CONFIG
+from training.utils.math_utils import *
+from training.config import DATA_CONFIG, LABEL_CONFIG
 import pandas as pd
 import numpy as np
 import math
