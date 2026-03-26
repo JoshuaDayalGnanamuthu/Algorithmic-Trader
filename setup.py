@@ -31,7 +31,11 @@ cursor.execute("""CREATE TABLE IF NOT EXISTS TRADES (
     SIDE ENUM('buy', 'sell') NOT NULL,
     QUANTITY FLOAT NOT NULL,
     PRICE FLOAT NOT NULL,
-    TOTAL FLOAT NOT NULL
+    TOTAL FLOAT NOT NULL,
+    PORTFOLIO FLOAT NOT NULL,
+    INDEX idx_ticker (TICKER),
+    INDEX idx_timestamp (TIMESTAMP),
+    INDEX idx_side (SIDE)
 )""")
 conn.commit()
 cursor.execute("""CREATE TABLE IF NOT EXISTS ERRORS (
