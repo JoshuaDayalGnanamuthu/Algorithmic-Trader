@@ -9,7 +9,7 @@ from training.utils.math_utils import *
 from training.config import WATCHLIST, PATHS
 from datetime import datetime, timedelta
 import robin_stocks.robinhood as rh
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import mysql.connector as my
 import numpy as np
 import xgboost as xgb
@@ -33,7 +33,7 @@ class TradingConfig:
     trading_hours: float = 6.5
     market_open: tuple = (9, 30)
     market_close: tuple = (16, 0)
-    watchlist: list[str] = WATCHLIST
+    watchlist: list[str] = field(default_factory=lambda: WATCHLIST)
 
 
 class PaperTrader:
@@ -61,13 +61,13 @@ class PaperTrader:
         self.holdings = dict.fromkeys(self.config.watchlist, 0.0)
         self.purchase_prices = dict.fromkeys(self.config.watchlist, 0.0)
         self.buy_timestamps = dict.fromkeys(self.config.watchlist, None)
-        self._load_model()
         self.conn = None
         self.cursor = None
         self.no_of_trades = [0]
         logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s",
             handlers=[logging.FileHandler("trades.log"), logging.StreamHandler()])
         self.logging = logging.getLogger(__name__)
+        self._load_model()
         self.logging.info(f"Initialized PaperTrader with model_type: {self.model_type}")
     
     def _load_model(self) -> None:
