@@ -7,6 +7,7 @@ load_dotenv("credentials.env")
 if __name__ == "__main__":
     trader = PaperTrader(
         username=os.getenv("USERNAME"),
-        password=os.getenv("PASSWORD")
+        password=os.getenv("PASSWORD"),
+        model_type="xgboost"
     )
     trader.Run()
