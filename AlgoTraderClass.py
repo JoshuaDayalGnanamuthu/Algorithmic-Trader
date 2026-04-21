@@ -6,18 +6,20 @@ Executes buy/sell orders based on neural network or XGBoost predictions with ris
 from training.ModularNeuralNetwork import ModularNeuralNet
 from training.data.features import BuildFeatureVector
 from training.utils.math_utils import *
-from training.config import WATCHLIST, PATHS
+from training.config import PROJECT_ROOT, WATCHLIST, PATHS
 from datetime import datetime, timedelta
 import robin_stocks.robinhood as rh
 from dataclasses import dataclass, field
 import mysql.connector as my
 import numpy as np
 import xgboost as xgb
+import subprocess
 import holidays
 import logging
 import joblib
 import time
 import os
+import sys
 
 
 @dataclass
@@ -33,6 +35,8 @@ class TradingConfig:
     trading_hours: float = 6.5
     market_open: tuple = (9, 30)
     market_close: tuple = (16, 0)
+    auto_retrain: bool = True
+    retrain_interval_hours: float = 24.0
     watchlist: list[str] = field(default_factory=lambda: WATCHLIST)
 
 
@@ -66,10 +70,14 @@ class PaperTrader:
         self.conn = None
         self.cursor = None
         self.no_of_trades = [0]
+        self.training_process = None
+        self.training_log_handle = None
+        self.next_retrain_at = None
         logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s",
             handlers=[logging.FileHandler("trades.log"), logging.StreamHandler()])
         self.logging = logging.getLogger(__name__)
         self._load_model()
+        self._schedule_initial_retrain()
         self.logging.info(f"Initialized PaperTrader with model_type: {self.model_type}")
     
     def _load_model(self) -> None:
@@ -80,6 +88,8 @@ class PaperTrader:
                 self.logging.info("Loaded ModularNeuralNet model")
             elif self.model_type == "xgboost":
                 self.model = xgb.XGBClassifier()
+                # Recent xgboost builds may omit this until fit/load time.
+                self.model._estimator_type = "classifier"
                 self.model.load_model(PATHS["xgboost"])
                 self.logging.info("Loaded XGBoost model")
             
@@ -102,6 +112,128 @@ class PaperTrader:
             return float(self.model.predict_probability(features_scaled).flatten()[0])
         elif self.model_type == "xgboost":
             return float(self.model.predict_proba(features_scaled)[0, 1])
+
+    def _model_path_key(self) -> str:
+        return "model" if self.model_type == "neural_network" else "xgboost"
+
+    def _training_interval(self) -> timedelta:
+        return timedelta(hours=self.config.retrain_interval_hours)
+
+    def _schedule_next_retrain(self, reference_time: datetime | None = None) -> None:
+        if not self.config.auto_retrain:
+            self.next_retrain_at = None
+            return
+
+        base_time = reference_time or datetime.now()
+        self.next_retrain_at = base_time + self._training_interval()
+        self.logging.info(
+            f"Next automatic retraining scheduled for {self.next_retrain_at.strftime('%Y-%m-%d %H:%M:%S')}"
+        )
+
+    def _schedule_initial_retrain(self) -> None:
+        if not self.config.auto_retrain:
+            return
+
+        try:
+            last_trained_at = datetime.fromtimestamp(os.path.getmtime(PATHS[self._model_path_key()]))
+        except OSError:
+            last_trained_at = datetime.now()
+
+        self.next_retrain_at = last_trained_at + self._training_interval()
+        self.logging.info(
+            f"Automatic retraining enabled; next run at {self.next_retrain_at.strftime('%Y-%m-%d %H:%M:%S')}"
+        )
+
+    def _seconds_until_next_retrain(self) -> float | None:
+        if not self.config.auto_retrain or self.training_process is not None or self.next_retrain_at is None:
+            return None
+        return max((self.next_retrain_at - datetime.now()).total_seconds(), 0.0)
+
+    def _training_command(self) -> list[str]:
+        return [
+            sys.executable,
+            str(PROJECT_ROOT / "train.py"),
+            "--model-type",
+            self.model_type,
+            "--once",
+        ]
+
+    def _maybe_start_retraining(self) -> None:
+        if not self.config.auto_retrain or self.training_process is not None or self.next_retrain_at is None:
+            return
+
+        if datetime.now() < self.next_retrain_at:
+            return
+
+        try:
+            log_path = PROJECT_ROOT / "training.log"
+            self.training_log_handle = open(log_path, "a", encoding="utf-8")
+            self.training_log_handle.write(
+                f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Starting scheduled {self.model_type} retraining.\n"
+            )
+            self.training_log_handle.flush()
+            self.training_process = subprocess.Popen(
+                self._training_command(),
+                cwd=str(PROJECT_ROOT),
+                stdout=self.training_log_handle,
+                stderr=subprocess.STDOUT,
+            )
+            self.logging.info("Started scheduled retraining in the background.")
+        except Exception as e:
+            self.logging.error(f"Failed to start scheduled retraining: {e}")
+            if self.training_log_handle:
+                self.training_log_handle.close()
+                self.training_log_handle = None
+            self.training_process = None
+            self._schedule_next_retrain()
+
+    def _poll_retraining_process(self) -> None:
+        if self.training_process is None:
+            return
+
+        return_code = self.training_process.poll()
+        if return_code is None:
+            return
+
+        finished_at = datetime.now()
+        if self.training_log_handle:
+            self.training_log_handle.write(
+                f"[{finished_at.strftime('%Y-%m-%d %H:%M:%S')}] Scheduled retraining exited with code {return_code}.\n"
+            )
+            self.training_log_handle.flush()
+            self.training_log_handle.close()
+            self.training_log_handle = None
+
+        self.training_process = None
+
+        if return_code == 0:
+            try:
+                self._load_model()
+                self.logging.info("Scheduled retraining completed successfully; model artifacts reloaded.")
+            except Exception as e:
+                self.logging.error(f"Retraining completed but model reload failed: {e}")
+        else:
+            self.logging.error(
+                f"Scheduled retraining failed with exit code {return_code}. Check training.log for details."
+            )
+
+        self._schedule_next_retrain(finished_at)
+
+    def _stop_retraining_process(self) -> None:
+        if self.training_process is not None and self.training_process.poll() is None:
+            self.logging.info("Stopping scheduled retraining process.")
+            self.training_process.terminate()
+            try:
+                self.training_process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                self.training_process.kill()
+                self.training_process.wait(timeout=5)
+
+        self.training_process = None
+
+        if self.training_log_handle:
+            self.training_log_handle.close()
+            self.training_log_handle = None
     
     def Login(self) -> bool:
         try:
@@ -403,10 +535,17 @@ class PaperTrader:
         self.logging.info("=" * 50)
         try:
             while True:
+                self._poll_retraining_process()
+                self._maybe_start_retraining()
+
                 if not self.MarketHours():
                     secs = self.SecondsUntilMarketOpen()
                     self.logging.info(f"Market closed — next open in {secs/3600:.1f}h")
-                    time.sleep(min(secs, 1800))
+                    sleep_for = min(secs, 1800)
+                    retrain_wait = self._seconds_until_next_retrain()
+                    if retrain_wait is not None:
+                        sleep_for = min(sleep_for, retrain_wait)
+                    time.sleep(max(sleep_for, 1))
                     continue
 
                 now = datetime.now()
@@ -467,12 +606,17 @@ class PaperTrader:
                 pnl_sign = "+" if pnl >= 0 else ""
                 self.logging.info(f"Capital: ${self.config.capital:,.2f}  |  Positions: {open_positions}/{self.config.max_positions}  |  Portfolio: ${self.portfolio:,.2f}  |  PnL: {pnl_sign}${pnl:,.2f}")
                 self.logging.info("─" * 50)
-                time.sleep(self.config.scan_interval)
+                sleep_for = self.config.scan_interval
+                retrain_wait = self._seconds_until_next_retrain()
+                if retrain_wait is not None:
+                    sleep_for = min(sleep_for, retrain_wait)
+                time.sleep(max(sleep_for, 1))
 
         except KeyboardInterrupt:
             self.logging.info("Interrupted by user.")
 
         finally:
+            self._stop_retraining_process()
             self.UpdatePortfolio()
             self.SavePortfolioState()
             pnl = self.portfolio - self.initial_capital

@@ -44,10 +44,11 @@ def SaveArtifacts(model, X_val, Y_val, future_val, timestamps_val):
     np.save(PATHS["future"],     np.array(future_val))
     np.save(PATHS["timestamps"], np.array(timestamps_val))
 
-def RunTrainingLoop(X_train, Y_train, X_val, Y_val, future_val, timestamps_val):
+def RunTrainingLoop(X_train, Y_train, X_val, Y_val, future_val, timestamps_val, prompt_retrain=True):
     idx_0, idx_1 = _validate_binary_split(Y_train, "Training")
     scale_pos_weight = len(idx_0) / len(idx_1)
     model = xgb.XGBClassifier(**XGBOOST_CONFIG, scale_pos_weight=scale_pos_weight, use_label_encoder=False)
+    model._estimator_type = "classifier"
 
     while True:
         model.fit(X_train, Y_train, eval_set=[(X_val, Y_val)], verbose=False)
@@ -58,6 +59,9 @@ def RunTrainingLoop(X_train, Y_train, X_val, Y_val, future_val, timestamps_val):
         print(classification_report(Y_val, y_pred, target_names=["Negative", "Positive"]))
 
         SaveArtifacts(model, X_val, Y_val, future_val, timestamps_val)
+
+        if not prompt_retrain:
+            break
 
         if input("Retrain? (Y/n): ").lower() != "y":
             break

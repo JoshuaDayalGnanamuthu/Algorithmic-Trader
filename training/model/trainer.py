@@ -46,7 +46,7 @@ def SaveArtifacts(model, X_val, Y_val, future_val, timestamps_val):
     np.save(PATHS["future"],    np.array(future_val))
     np.save(PATHS["timestamps"], np.array(timestamps_val))
 
-def RunTrainingLoop(X_train, Y_train, X_val, Y_val, future_val, timestamps_val):
+def RunTrainingLoop(X_train, Y_train, X_val, Y_val, future_val, timestamps_val, prompt_retrain=True):
     model = ModularNeuralNet(**MODEL_CONFIG)
     class_weights = _class_weights(Y_train, "Training")
 
@@ -60,6 +60,9 @@ def RunTrainingLoop(X_train, Y_train, X_val, Y_val, future_val, timestamps_val):
         metrics, _ = model.evaluate(X_val, Y_val)
         print(metrics)
         SaveArtifacts(model, X_val, Y_val, future_val, timestamps_val)
+
+        if not prompt_retrain:
+            break
 
         if input("Retrain? (Y/n): ").lower() != "y":
             break

@@ -51,10 +51,12 @@ python setup.py
 ## Training
 
 - Neural network training:
-  - `python training/model/trainer.py` (or run the training script within `training/`)
+  - `python train.py`
+  - `python train.py --once`
 
 - XGBoost training:
-  - `python training/model/xgboost.py`
+  - `python train.py --model-type xgboost`
+  - `python train.py --model-type xgboost --once`
 
 ## Backtest
 
@@ -71,6 +73,8 @@ Run the trading bot with paper trading mode:
 ```bash
 python PaperTrader.py
 ```
+
+While the bot is running, it now launches `train.py` automatically every 24 hours in the background and reloads the updated artifacts after a successful run. Scheduled training output is appended to `training.log`.
 
 ## Notes
 

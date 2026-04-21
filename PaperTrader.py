@@ -8,6 +8,6 @@ if __name__ == "__main__":
     trader = PaperTrader(
         username=str(os.getenv("USERNAME")),
         password=str(os.getenv("PASSWORD")),
-        model_type="xgboost"
+        model_type="neural_network"
     )
     trader.Run()
