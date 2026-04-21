@@ -57,10 +57,12 @@ class PaperTrader:
         self.password = password
         self.model_type = model_type
         self.config = TradingConfig()
+        self.initial_capital = self.config.capital
         self.portfolio = self.config.capital
         self.holdings = dict.fromkeys(self.config.watchlist, 0.0)
         self.purchase_prices = dict.fromkeys(self.config.watchlist, 0.0)
         self.buy_timestamps = dict.fromkeys(self.config.watchlist, None)
+        self.market_holidays = holidays.US()
         self.conn = None
         self.cursor = None
         self.no_of_trades = [0]
@@ -114,13 +116,18 @@ class PaperTrader:
         rh.authentication.logout()
         self.logging.info("Logged out of Robinhood.")
 
-    def SQLConnect(self) -> bool:
+    def SQLConnect(self, load_state: bool = True) -> bool:
         try:
             self.conn = my.connect(host=os.getenv("DATABASE_HOST"), user=os.getenv("DATABASE_USERNAME"),
                             password=os.getenv("DATABASE_PASSWORD"),database="ALGOTRADER")
             if self.conn.is_connected():
                 self.logging.info("Conected Successfully to MySQL")
                 self.cursor = self.conn.cursor()
+                self._ensure_state_tables()
+                if load_state and not self.LoadPortfolioState():
+                    self.logging.error("Failed to load persisted portfolio state.")
+                    self.SQLClose()
+                    return False
                 return True
         except Exception as e:
             self.logging.error(f"DB connect failed: {e}")
@@ -132,6 +139,120 @@ class PaperTrader:
         if self.conn and self.conn.is_connected():
             self.conn.close()
         self.logging.info("SQL Connection Closed.")
+
+    def _ensure_state_tables(self) -> None:
+        self.cursor.execute("""CREATE TABLE IF NOT EXISTS PORTFOLIO_STATE (
+            ID TINYINT PRIMARY KEY,
+            CAPITAL FLOAT NOT NULL,
+            PORTFOLIO FLOAT NOT NULL,
+            UPDATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )""")
+        self.cursor.execute("""CREATE TABLE IF NOT EXISTS HOLDINGS (
+            TICKER VARCHAR(10) PRIMARY KEY,
+            QUANTITY FLOAT NOT NULL DEFAULT 0,
+            PURCHASE_PRICE FLOAT NOT NULL DEFAULT 0,
+            BUY_TIMESTAMP DATETIME NULL,
+            UPDATED_AT TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )""")
+        self.conn.commit()
+
+    def _all_state_tickers(self) -> list[str]:
+        return list(dict.fromkeys([*self.config.watchlist, *self.holdings.keys()]))
+
+    def _active_tickers(self) -> list[str]:
+        active_positions = [ticker for ticker, quantity in self.holdings.items() if quantity > 0]
+        return list(dict.fromkeys([*self.config.watchlist, *active_positions]))
+
+    def SavePortfolioState(self) -> bool:
+        if not self.conn or not self.conn.is_connected():
+            self.logging.error("DB disconnected, attempting reconnect...")
+            if not self.SQLConnect(load_state=False):
+                self.logging.error("Failed to reconnect - portfolio state not saved")
+                return False
+        try:
+            self.cursor.execute(
+                """INSERT INTO PORTFOLIO_STATE (ID, CAPITAL, PORTFOLIO)
+                VALUES (1, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                    CAPITAL = VALUES(CAPITAL),
+                    PORTFOLIO = VALUES(PORTFOLIO)""",
+                (round(self.config.capital, 4), round(self.portfolio, 4))
+            )
+            values = [
+                (
+                    ticker,
+                    round(self.holdings.get(ticker, 0.0), 6),
+                    round(self.purchase_prices.get(ticker, 0.0), 4),
+                    self.buy_timestamps.get(ticker)
+                )
+                for ticker in self._all_state_tickers()
+            ]
+            self.cursor.executemany(
+                """INSERT INTO HOLDINGS (TICKER, QUANTITY, PURCHASE_PRICE, BUY_TIMESTAMP)
+                VALUES (%s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                    QUANTITY = VALUES(QUANTITY),
+                    PURCHASE_PRICE = VALUES(PURCHASE_PRICE),
+                    BUY_TIMESTAMP = VALUES(BUY_TIMESTAMP)""",
+                values
+            )
+            self.conn.commit()
+            return True
+        except Exception as e:
+            self.logging.error(f"SavePortfolioState failed: {e}")
+            return False
+
+    def LoadPortfolioState(self) -> bool:
+        if not self.conn or not self.conn.is_connected():
+            return False
+        try:
+            self.cursor.execute("SELECT CAPITAL, PORTFOLIO FROM PORTFOLIO_STATE WHERE ID = 1")
+            account_row = self.cursor.fetchone()
+            self.cursor.execute("SELECT TICKER, QUANTITY, PURCHASE_PRICE, BUY_TIMESTAMP FROM HOLDINGS")
+            holdings_rows = self.cursor.fetchall()
+
+            for ticker in list(self.holdings.keys()):
+                self.holdings[ticker] = 0.0
+                self.purchase_prices[ticker] = 0.0
+                self.buy_timestamps[ticker] = None
+
+            open_positions = 0
+            for ticker, quantity, purchase_price, buy_timestamp in holdings_rows:
+                if ticker not in self.holdings:
+                    self.holdings[ticker] = 0.0
+                    self.purchase_prices[ticker] = 0.0
+                    self.buy_timestamps[ticker] = None
+                self.holdings[ticker] = float(quantity)
+                self.purchase_prices[ticker] = float(purchase_price)
+                self.buy_timestamps[ticker] = buy_timestamp
+                if quantity > 0:
+                    open_positions += 1
+
+            if account_row:
+                self.config.capital = float(account_row[0])
+                self.portfolio = float(account_row[1])
+            else:
+                self.portfolio = self.config.capital
+                self.SavePortfolioState()
+                self.logging.info("Initialized portfolio state in database.")
+                return True
+
+            if open_positions > 0:
+                try:
+                    self.UpdatePortfolio()
+                    self.SavePortfolioState()
+                except Exception as e:
+                    self.logging.warning(f"Loaded holdings from database but could not refresh portfolio value: {e}")
+            else:
+                self.portfolio = self.config.capital
+
+            self.logging.info(
+                f"Loaded portfolio state from database: ${self.portfolio:,.2f} across {open_positions} open positions."
+            )
+            return True
+        except Exception as e:
+            self.logging.error(f"LoadPortfolioState failed: {e}")
+            return False
     
     def BuyOrder(self, ticker: str, current_price: float, spend: float, confidence: float = 0.0) -> bool:
         try:
@@ -142,6 +263,7 @@ class PaperTrader:
             self.buy_timestamps[ticker] = datetime.now()
             self.config.capital -= spend
             self.UpdatePortfolio()
+            self.SavePortfolioState()
             self.LogTrade(ticker, "buy", quantity, current_price, spend)
             message = (f"BUY {ticker}: {quantity:.4f} shares @ ${current_price:.2f} | Spent ${spend:.2f} | Confidence {confidence:.2%}")
             self.logging.info(message)
@@ -162,6 +284,7 @@ class PaperTrader:
             self.buy_timestamps[ticker] = None
             self.config.capital += proceeds
             self.UpdatePortfolio()
+            self.SavePortfolioState()
             self.LogTrade(ticker, "sell", quantity, current_price, proceeds)
             message = (f"SELL {ticker} [{reason}]: {quantity:.4f} shares @ ${current_price:.2f} | Proceeds ${proceeds:.2f} | PnL ${pnl:.2f}")
             self.logging.info(message)
@@ -190,7 +313,7 @@ class PaperTrader:
     def LogTrade(self, ticker: str, side: str, quantity: float, price: float, total: float) -> None:
         if not self.conn or not self.conn.is_connected():
             self.logging.error("DB disconnected, attempting reconnect...")
-            if not self.SQLConnect():
+            if not self.SQLConnect(load_state=False):
                 self.logging.error("Failed to reconnect - trade not logged")
                 return
         try:
@@ -204,12 +327,13 @@ class PaperTrader:
     def LivePrice(self, ticker: str) -> float:
         price = rh.stocks.get_latest_price(ticker, priceType=None, includeExtendedHours=True)[0]
         return float(price)
+
+    def IsTradingDay(self, day) -> bool:
+        return day.weekday() < 5 and day not in self.market_holidays
     
     def MarketHours(self) -> bool:
         now = datetime.now()
-        if now.weekday() >= 5:
-            return False
-        if now.date() in holidays.US():
+        if not self.IsTradingDay(now.date()):
             return False
         return self.config.market_open <= (now.hour, now.minute) < self.config.market_close
     
@@ -218,7 +342,7 @@ class PaperTrader:
         days_ahead = 0
         while True:
             candidate = (now + timedelta(days=days_ahead)).replace(hour=9, minute=30, second=0, microsecond=0)
-            if candidate > now and candidate.weekday() < 5:
+            if candidate > now and self.IsTradingDay(candidate.date()):
                 return (candidate - now).total_seconds()
             days_ahead += 1
     
@@ -236,7 +360,7 @@ class PaperTrader:
         current = buy_time.date()
         end = now.date()
         while current <= end:
-            if current.weekday() < 5:
+            if self.IsTradingDay(current):
                 if current == buy_time.date() == now.date():
                     elapsed += self.ClampToMarket(now) - self.ClampToMarket(buy_time)
                 elif current == buy_time.date():
@@ -250,8 +374,15 @@ class PaperTrader:
     
     def UpdatePortfolio(self) -> None:
         self.portfolio = self.config.capital
-        prices_raw = rh.stocks.get_latest_price(self.config.watchlist)
-        prices = {t: float(p) for t, p in zip(self.config.watchlist, prices_raw)}
+        tracked_tickers = self._active_tickers()
+        if not tracked_tickers:
+            return
+        prices_raw = rh.stocks.get_latest_price(tracked_tickers)
+        prices = {
+            ticker: float(price)
+            for ticker, price in zip(tracked_tickers, prices_raw)
+            if price is not None
+        }
         for ticker, quantity in self.holdings.items():
             if quantity > 0:
                 price = prices.get(ticker)
@@ -262,7 +393,9 @@ class PaperTrader:
         if not self.Login():
             return
         if not self.SQLConnect():
-            self.logging.warning("Running without database.")
+            self.logging.error("Database connection and portfolio state load are required before trading can start.")
+            self.Logout()
+            return
 
         self.logging.info("=" * 50)
         self.logging.info("ALGO TRADER STARTED".center(50))
@@ -279,16 +412,24 @@ class PaperTrader:
                 now = datetime.now()
                 label = f" Scan [{now.strftime('%H:%M:%S')}] "
                 self.logging.info(label.center(50, '─'))
-                prices_raw = rh.stocks.get_latest_price(self.config.watchlist)
-                prices = {t: float(p) for t, p in zip(self.config.watchlist, prices_raw)}
+                tracked_tickers = self._active_tickers()
+                prices_raw = rh.stocks.get_latest_price(tracked_tickers)
+                prices = {
+                    ticker: float(price)
+                    for ticker, price in zip(tracked_tickers, prices_raw)
+                    if price is not None
+                }
 
-                for ticker in self.config.watchlist:
-                    if self.holdings[ticker] > 0:
+                for ticker, quantity in list(self.holdings.items()):
+                    if quantity > 0:
                         current_price = prices.get(ticker)
                         if current_price is None:
                             continue
                         returns = (current_price - self.purchase_prices[ticker]) / self.purchase_prices[ticker]
-                        hours_held = self.MarketMinutesElapsed(self.buy_timestamps[ticker], datetime.now())
+                        buy_time = self.buy_timestamps.get(ticker)
+                        if buy_time is None:
+                            continue
+                        hours_held = self.MarketMinutesElapsed(buy_time, datetime.now())
                         if hours_held >= self.config.hold_hours:
                             self.SellOrder(ticker, current_price=current_price, reason="5H_HOLD")
                         elif returns >= self.config.take_profit:
@@ -318,10 +459,11 @@ class PaperTrader:
                                 self.no_of_trades.append(self.no_of_trades[-1] + 1)
                             
                 self.UpdatePortfolio()
+                self.SavePortfolioState()
                 with open("equitycurve.txt", "a") as f:
                     f.write(f"{self.no_of_trades[-1]},{self.portfolio:.2f}\n")
 
-                pnl = self.portfolio - 100000.0
+                pnl = self.portfolio - self.initial_capital
                 pnl_sign = "+" if pnl >= 0 else ""
                 self.logging.info(f"Capital: ${self.config.capital:,.2f}  |  Positions: {open_positions}/{self.config.max_positions}  |  Portfolio: ${self.portfolio:,.2f}  |  PnL: {pnl_sign}${pnl:,.2f}")
                 self.logging.info("─" * 50)
@@ -331,7 +473,9 @@ class PaperTrader:
             self.logging.info("Interrupted by user.")
 
         finally:
-            pnl = self.portfolio - 100000.0
+            self.UpdatePortfolio()
+            self.SavePortfolioState()
+            pnl = self.portfolio - self.initial_capital
             pnl_sign = "+" if pnl >= 0 else ""
             self.logging.info("=" * 50)
             self.logging.info(f"  SESSION COMPLETE")

@@ -108,7 +108,15 @@ class ModularNeuralNet:
             caches[f'Z{i}'] = Z
         return A, caches
 
-    def cost(self, A, Y):
+    def _sample_weights(self, Y, class_weights=None):
+        if not class_weights:
+            return np.ones_like(Y, dtype=float)
+
+        weight_0 = float(class_weights.get(0, 1.0))
+        weight_1 = float(class_weights.get(1, 1.0))
+        return np.where(Y == 1, weight_1, weight_0)
+
+    def cost(self, A, Y, class_weights=None):
         """
         Compute binary cross-entropy cost.
 
@@ -122,10 +130,11 @@ class ModularNeuralNet:
         m = Y.shape[1]
         epsilon = 1e-15
         A = np.clip(A, epsilon, 1 - epsilon)
-        cost = -1/m * np.sum(Y * np.log(A) + (1 - Y) * np.log(1 - A))
+        sample_weights = self._sample_weights(Y, class_weights)
+        cost = -1/m * np.sum(sample_weights * (Y * np.log(A) + (1 - Y) * np.log(1 - A)))
         return np.squeeze(cost)
 
-    def backward_propagation(self, Y, caches):
+    def backward_propagation(self, Y, caches, class_weights=None):
         """
         Backward propagation to compute gradients.
 
@@ -139,6 +148,7 @@ class ModularNeuralNet:
         m = Y.shape[1]
         gradients = {}
         clip_value = 5.0 
+        sample_weights = self._sample_weights(Y, class_weights)
 
         for i in range(self.num_layers - 1, 0, -1):
             A = caches[f'A{i}']
@@ -146,7 +156,7 @@ class ModularNeuralNet:
             Z = caches[f'Z{i}']
 
             if i == (self.num_layers - 1):
-                dA = -(np.divide(Y, A) - np.divide(1 - Y, 1 - A))
+                dA = -sample_weights * (np.divide(Y, A) - np.divide(1 - Y, 1 - A))
                 dZ = dA * self.final_activation_derivative(Z)
             else:
                 dZ = dA * self.activation_derivative(Z)
@@ -176,7 +186,7 @@ class ModularNeuralNet:
 
     def train(self, X, Y, epochs=1000, learning_rate=0.01, batch_size=None,
               print_interval=100, learning_rate_decay=0.95, decay_interval=100,
-              early_stopping_patience=None, validation_data=None):
+              early_stopping_patience=None, validation_data=None, class_weights=None):
         """
         Train the neural network.
 
@@ -224,9 +234,9 @@ class ModularNeuralNet:
         for i in range(epochs):
             if batch_size is None:
                 A, caches = self.feed_forward(X_train)
-                cost = self.cost(A, Y_train)
-                gradients = self.backward_propagation(Y_train, caches)
-                self.refresh_paramters(gradients, current_learning_rate)
+                cost = self.cost(A, Y_train, class_weights=class_weights)
+                gradients = self.backward_propagation(Y_train, caches, class_weights=class_weights)
+                self.refresh_parameters(gradients, current_learning_rate)
             else:
                 cost = 0
                 permutation = np.random.permutation(m)
@@ -243,10 +253,10 @@ class ModularNeuralNet:
                     Y_batch = Y_shuffled[:, start_idx:end_idx]
 
                     A_batch, caches_batch = self.feed_forward(X_batch)
-                    batch_cost = self.cost(A_batch, Y_batch)
+                    batch_cost = self.cost(A_batch, Y_batch, class_weights=class_weights)
                     cost += batch_cost * (end_idx - start_idx) / m
 
-                    gradients = self.backward_propagation(Y_batch, caches_batch)
+                    gradients = self.backward_propagation(Y_batch, caches_batch, class_weights=class_weights)
                     self.refresh_parameters(gradients, current_learning_rate)
 
             history['costs'].append(cost)

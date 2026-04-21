@@ -58,7 +58,7 @@ LABEL_CONFIG = {
 
 MODEL_CONFIG = {
     "input_size": 18,
-    "hidden_layers": [512, 256, 128, 64, 32],
+    "hidden_layers": [64, 32, 16],
     "activation": "relu",
     "final_activation": "sigmoid",
 }
@@ -69,7 +69,7 @@ TRAIN_CONFIG = {
     "batch_size": 64,
     "learning_rate_decay": 0.999,
     "decay_interval": 50,
-    "early_stopping_patience": 750,
+    "early_stopping_patience": 150,
     "print_interval": 100,
 
 }

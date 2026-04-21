@@ -26,11 +26,12 @@ def BuildFeatureVector(closes, highs, lows, volumes, i, ticker_idx) -> list[floa
     ]
 
 
-def BuildLabel(closes, i) -> int | None:
-    future_return = SafeDivide(closes[i+5] - closes[i], closes[i])
-    if future_return >  LABEL_CONFIG["buy_threshold"]:  return 1, future_return
-    if future_return < LABEL_CONFIG["sell_threshold"]:  return 0, future_return
-    return None, future_return
+def BuildLabel(closes, i) -> tuple[int, float]:
+    future_return = SafeDivide(closes[i+DATA_CONFIG["forward_bars"]] - closes[i], closes[i])
+    if future_return > LABEL_CONFIG["buy_threshold"]:
+        return 1, future_return
+    # Treat neutral and negative moves as "do not buy" so training matches live inference.
+    return 0, future_return
 
 
 def BuildDataset(raw_data: dict, watchlist: list[str]) -> tuple:
@@ -51,7 +52,7 @@ def BuildDataset(raw_data: dict, watchlist: list[str]) -> tuple:
         warmup     = DATA_CONFIG["warmup"]
         forward    = DATA_CONFIG["forward_bars"]
 
-        for i in range(warmup, len(closes) - 5):
+        for i in range(warmup, len(closes) - DATA_CONFIG["forward_bars"]):
             label, future_return = BuildLabel(closes, i)
             if label is None:
                 continue
