@@ -74,7 +74,7 @@ class PaperTrader:
         self.training_log_handle = None
         self.next_retrain_at = None
         logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s",
-            handlers=[logging.FileHandler("trades.log"), logging.StreamHandler()])
+            handlers=[logging.FileHandler("trades.log", encoding="utf-8"), logging.StreamHandler()])
         self.logging = logging.getLogger(__name__)
         self._load_model()
         self._schedule_initial_retrain()
@@ -540,7 +540,7 @@ class PaperTrader:
 
                 if not self.MarketHours():
                     secs = self.SecondsUntilMarketOpen()
-                    self.logging.info(f"Market closed — next open in {secs/3600:.1f}h")
+                    self.logging.info(f"Market closed - next open in {secs/3600:.1f}h")
                     sleep_for = min(secs, 1800)
                     retrain_wait = self._seconds_until_next_retrain()
                     if retrain_wait is not None:
@@ -550,7 +550,7 @@ class PaperTrader:
 
                 now = datetime.now()
                 label = f" Scan [{now.strftime('%H:%M:%S')}] "
-                self.logging.info(label.center(50, '─'))
+                self.logging.info(label.center(50, '-'))
                 tracked_tickers = self._active_tickers()
                 prices_raw = rh.stocks.get_latest_price(tracked_tickers)
                 prices = {
@@ -605,7 +605,7 @@ class PaperTrader:
                 pnl = self.portfolio - self.initial_capital
                 pnl_sign = "+" if pnl >= 0 else ""
                 self.logging.info(f"Capital: ${self.config.capital:,.2f}  |  Positions: {open_positions}/{self.config.max_positions}  |  Portfolio: ${self.portfolio:,.2f}  |  PnL: {pnl_sign}${pnl:,.2f}")
-                self.logging.info("─" * 50)
+                self.logging.info("-" * 50)
                 sleep_for = self.config.scan_interval
                 retrain_wait = self._seconds_until_next_retrain()
                 if retrain_wait is not None:
