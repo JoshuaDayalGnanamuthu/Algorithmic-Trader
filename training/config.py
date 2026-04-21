@@ -1,3 +1,6 @@
+from pathlib import Path
+
+
 WATCHLIST = [
     # Mega-cap Tech
     "AAPL", "TSLA", "ASTS", "NVDA", "AMZN",
@@ -90,12 +93,15 @@ SPLIT_CONFIG = {
     "test_size": 0.2,
 }
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+FILES_DIR = PROJECT_ROOT / "files"
+
 PATHS = {
-    "scaler": "/Users/joshuadayal/Documents/Python/Algorithmic-Trader/files/scaler.save",
-    "model": "/Users/joshuadayal/Documents/Python/Algorithmic-Trader/files/trader_model.npy",
-    "X_val": "/Users/joshuadayal/Documents/Python/Algorithmic-Trader/files/X_validate.npy",
-    "Y_val": "/Users/joshuadayal/Documents/Python/Algorithmic-Trader/files/Y_validate.npy",
-    "future": "/Users/joshuadayal/Documents/Python/Algorithmic-Trader/files/future_returns.npy",
-    "timestamps": "/Users/joshuadayal/Documents/Python/Algorithmic-Trader/files/timestamps_val.npy",
-    "xgboost": "/Users/joshuadayal/Documents/Python/Algorithmic-Trader/files/xgboost_model.json",
+    "scaler": str(FILES_DIR / "scaler.save"),
+    "model": str(FILES_DIR / "trader_model.npy"),
+    "X_val": str(FILES_DIR / "X_validate.npy"),
+    "Y_val": str(FILES_DIR / "Y_validate.npy"),
+    "future": str(FILES_DIR / "future_returns.npy"),
+    "timestamps": str(FILES_DIR / "timestamps_val.npy"),
+    "xgboost": str(FILES_DIR / "xgboost_model.json"),
 }
